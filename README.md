@@ -59,6 +59,35 @@ docker run --rm -p 127.0.0.1:8765:8765 -e NNVIZ_MODEL=resnet50 -e NNVIZ_ALLOW_UP
 - Pretrained weights are downloaded on demand (torchvision models); the container needs internet access for that.
 - GPU is not used. The image is CPU-only to stay small.
 
+### Opening the tool
+- **Container on the same machine:** open http://127.0.0.1:8765 in your browser.
+- **Container on a remote or headless server:** your browser cannot reach it directly. From *your own computer*,
+  open an SSH tunnel:
+
+  ```bash
+  ssh -L 8765:127.0.0.1:8765 your_user@your_server
+  ```
+
+  Leave that terminal open, then open http://127.0.0.1:8765 on your own computer. This is also the safe way to do it:
+  the tool is never exposed to the internet.
+
+### Useful commands
+| What you want | Command |
+|---|---|
+| Run in the background | `docker compose up -d` |
+| Follow the logs | `docker compose logs -f` |
+| Stop and remove the container | `docker compose down` |
+| Update to a new version | `git pull` then `docker compose up --build` |
+
+### Troubleshooting
+| Symptom | Likely fix |
+|---|---|
+| `permission denied` when running `docker` | Use `sudo docker …`, or add yourself to the `docker` group and log in again. |
+| "port is already allocated" | Change the left side of the port mapping in `docker-compose.yml`, e.g. `"127.0.0.1:9000:8765"`. |
+| Blank page right after start | Wait about 20 seconds (the toy model trains at start-up), then reload. |
+| Large models are slow or crash | GPT-2 / ViT-B need a few GB of RAM; try a smaller model such as `resnet18`. |
+| "pretrained" fails | Weights are downloaded on demand, so the container needs internet access. |
+
 ## How it works
 - `extract.py` traces the model with `torch.fx` (falling back to forward hooks), builds the graph, samples large tensors
   for display (≤24 channels/features, ≤12×12 cells, ≤4 attention heads — true shapes are always reported), and runs
