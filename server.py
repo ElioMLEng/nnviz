@@ -1,0 +1,210 @@
+import gc
+import importlib.util
+import json
+import re
+import sys
+import threading
+import time
+import traceback
+import webbrowser
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+
+import torch
+import torch.nn as nn
+
+from extract import NetGraph
+from zoo import REGISTRY, param_count
+
+HERE = Path(__file__).parent
+ROOT = (HERE / "static").resolve()
+UPLOADS = HERE / "uploads"
+UPLOADS.mkdir(exist_ok=True)
+lock = threading.Lock()
+STATE = {"net": None, "id": None, "name": None, "make_input": None, "classes": [], "load_s": 0.0,
+         "controls": [], "extras": None}
+
+
+def to_image(t):
+    """Tensor -> {c,h,w,data} (uint8, HWC) when it looks like an image (1/2/3 channels), else None."""
+    from extract import first_tensor
+    import torch.nn.functional as F
+    t = first_tensor(t)
+    if t is None: return None
+    t = t.detach().float()
+    if t.ndim == 4: t = t[0]
+    if t.ndim != 3 or t.shape[0] not in (1, 2, 3) or min(t.shape[1:]) < 4: return None
+    if t.shape[0] == 2: t = (t[1] - t[0])[None]                  # 2-class map -> difference
+    h, w = t.shape[1:]
+    if max(h, w) > 64: t = F.adaptive_avg_pool2d(t[None], (min(h, 64), min(w, 64)))[0]
+    lo, hi = t.min(), t.max()
+    t = (t - lo) / (hi - lo + 1e-9)
+    return {"c": int(t.shape[0]), "h": int(t.shape[1]), "w": int(t.shape[2]),
+            "data": (t.permute(1, 2, 0).reshape(-1) * 255).round().int().tolist()}
+
+
+def parse_input_spec(spec):
+    """'1,3,224,224' -> float randn; 'int:1,32:50257' -> random token ids (vocab optional)."""
+    if spec.startswith("int:"):
+        parts = spec[4:].split(":")
+        shape = [int(v) for v in parts[0].split(",")]
+        vocab = int(parts[1]) if len(parts) > 1 else 1000
+        return lambda cls, seed: torch.randint(0, vocab, shape, generator=torch.Generator().manual_seed(seed))
+    shape = [int(v) for v in spec.split(",")]
+    return lambda cls, seed: torch.randn(*shape, generator=torch.Generator().manual_seed(seed))
+
+
+def install(model, make_input, classes, model_id, name, controls=None, extras=None):
+    t0 = time.time()
+    example = make_input(0, 0)
+    net = NetGraph(model.eval(), example)
+    with lock:
+        old = STATE["net"]
+        STATE.update(net=net, id=model_id, name=name, make_input=make_input, classes=classes, load_s=time.time() - t0,
+                     controls=controls or [], extras=extras)
+    del old
+    gc.collect()
+
+
+def load_registry(model_id, pretrained):
+    e = REGISTRY[model_id]
+    model = e["build"](pretrained=pretrained) if pretrained else e["build"]()
+    install(model, e["make_input"], e["classes"], model_id, model_id + (" (pretrained)" if pretrained else ""),
+            controls=e.get("controls"), extras=e.get("extras"))
+
+
+def load_upload(path, input_spec):
+    suffix = path.suffix.lower()
+    make_input, classes = None, ["example input", "random noise"]
+    if suffix == ".py":
+        spec = importlib.util.spec_from_file_location("user_model_" + re.sub(r"\W", "_", path.stem), path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        if hasattr(mod, "build"):
+            model = mod.build()
+        else:
+            cands = [c for c in vars(mod).values() if isinstance(c, type) and issubclass(c, nn.Module)
+                     and c.__module__ == mod.__name__]
+            if len(cands) != 1:
+                raise ValueError("define build() returning an nn.Module (and optionally example_input())")
+            model = cands[0]()
+        if hasattr(mod, "example_input"):
+            ex = mod.example_input()
+            make_input = lambda cls, seed, ex=ex: ex if cls == 0 else torch.randn_like(ex.float()).to(ex.dtype) \
+                if ex.is_floating_point() else ex
+        classes = getattr(mod, "CLASSES", classes)
+    elif suffix in (".pt", ".pth"):
+        try:
+            model = torch.load(path, weights_only=False, map_location="cpu")
+        except Exception:
+            model = torch.jit.load(str(path), map_location="cpu")
+        if isinstance(model, dict):
+            raise ValueError("this file is a state_dict (weights only, no architecture). "
+                             "Upload a .py defining build() instead, or torch.save(model) the whole module.")
+    else:
+        raise ValueError("supported: .py (build()), .pt/.pth (whole pickled module or TorchScript)")
+    if make_input is None:
+        if not input_spec:
+            raise ValueError("input shape required, e.g. 1,3,224,224 or int:1,32:50257")
+        make_input = parse_input_spec(input_spec)
+    install(model, make_input, classes, "upload:" + path.name, path.name)
+
+
+def prediction(out):
+    l = out[0] if out.ndim >= 2 else out
+    if l.ndim == 2: l = l[-1]                      # sequence model: next-token logits at last position
+    if l.ndim != 1 or l.numel() < 2: return None, None, 0
+    p = l.float().softmax(-1)
+    return int(p.argmax()), float(p.max()), int(l.numel())
+
+
+class H(BaseHTTPRequestHandler):
+    def _json(self, obj, code=200):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _file(self, f):
+        types = {".html": "text/html; charset=utf-8", ".js": "text/javascript"}
+        body = f.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", types.get(f.suffix, "application/octet-stream"))
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        u = urlparse(self.path)
+        q = parse_qs(u.query)
+        try:
+            if u.path == "/api/models":
+                return self._json({"current": STATE["id"], "models": [
+                    {"id": k, "group": v["group"], "desc": v["desc"], "pretrained": v["pretrained"],
+                     "params": param_count(k), "info": v.get("info")}
+                    for k, v in REGISTRY.items()]})
+            if u.path == "/api/graph":
+                net = STATE["net"]
+                return self._json({**net.graph, "classes": STATE["classes"], "model": STATE["id"],
+                                   "name": STATE["name"], "load_s": round(STATE["load_s"], 1),
+                                   "controls": STATE["controls"]})
+            if u.path == "/api/activations":
+                cls, seed = int(q.get("cls", [0])[0]), int(q.get("seed", [0])[0])
+                params = {k[2:]: float(v[0]) for k, v in q.items() if k.startswith("p_")}
+                with lock:
+                    x = STATE["make_input"](cls, seed, **params) if params else STATE["make_input"](cls, seed)
+                    acts, out = STATE["net"].activations(x)
+                    images = []
+                    xin = x[0] if isinstance(x, tuple) else x
+                    for name, tens in [("input", xin), ("output", out)]:
+                        im = to_image(tens)
+                        if im: images.append({"name": name, **im})
+                    if STATE["extras"]:
+                        for name, tens in STATE["extras"](x, out).items():
+                            im = to_image(tens)
+                            if im: images.append({"name": name, **im})
+                pred, prob, n = prediction(out)
+                return self._json({"acts": acts, "pred": pred, "prob": prob, "n_out": n, "images": images})
+        except Exception as e:
+            traceback.print_exc()
+            return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+        f = (ROOT / ("index.html" if u.path == "/" else u.path.lstrip("/"))).resolve()
+        if f.is_file() and ROOT in f.parents:
+            return self._file(f)
+        self.send_error(404)
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        try:
+            if u.path == "/api/load":
+                if q["model"] not in REGISTRY: raise ValueError("unknown model")
+                load_registry(q["model"], q.get("pretrained") == "1")
+            elif u.path == "/api/upload":
+                name = re.sub(r"[^\w.\-]", "_", q.get("name", "model.py"))
+                data = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                p = UPLOADS / name
+                p.write_bytes(data)
+                load_upload(p, q.get("input", ""))
+            else:
+                return self.send_error(404)
+            return self._json({"ok": True, "model": STATE["id"]})
+        except Exception as e:
+            traceback.print_exc()
+            return self._json({"error": f"{type(e).__name__}: {e}"}, 400)
+
+    def log_message(self, *a):
+        pass
+
+
+if __name__ == "__main__":
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+    first = sys.argv[2] if len(sys.argv) > 2 else "toy-mixed"
+    load_registry(first, False)
+    print(f"nnviz on http://127.0.0.1:{port}  (model: {first})")
+    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+    threading.Timer(0.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    srv.serve_forever()

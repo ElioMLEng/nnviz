@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nnviz 3D</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#ddd;font:13px system-ui,Segoe UI,sans-serif;overflow:hidden}
+  #gl{position:fixed;inset:0}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lb{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;text-shadow:0 0 4px #000,0 0 4px #000}
+  .lb b{font-size:13px}.lb span{display:block;font-size:11px;color:#888}
+  .lb.sel b{text-decoration:underline}
+  :root{--bg:#0b0b0fe6;--line:#23232b;--mut:#8a8a96;--fg:#e4e4ea;--acc:#5cdcff;--ctl:#16161d}
+  #left{position:fixed;left:12px;top:12px;width:372px;display:flex;flex-direction:column;gap:8px;
+        max-height:calc(100vh - 24px - var(--legend-h, 190px) - 8px);pointer-events:none}
+  #left > section{pointer-events:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+  #ctl header{display:flex;align-items:baseline;gap:6px;padding:8px 10px 0 12px}
+  #ctl .brand{font-weight:700;letter-spacing:.02em;color:var(--fg)} #ctl .sub3d{color:var(--acc);font-weight:700}
+  #ctl header .sp{flex:1}
+  #ctl{overflow:auto;min-height:0}
+  #ctl .body{padding:6px 12px 10px}
+  #ctl.closed .body{display:none}
+  #ctl .sec{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);margin:10px 0 5px;display:flex;align-items:center;gap:8px}
+  #ctl .sec::after{content:"";flex:1;height:1px;background:var(--line)}
+  #ctl .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+  #ctl .grow{flex:1;min-width:0}
+  #ctl select,#ctl button,#ctl input[type=text],#ctl input:not([type]){background:var(--ctl);color:var(--fg);border:1px solid #30303a;border-radius:6px;padding:5px 8px;font:inherit}
+  #ctl button{cursor:pointer} #ctl button:hover:not(:disabled){border-color:#4a4a58;background:#1d1d27}
+  #ctl button.icon{padding:5px 9px} #ctl button:disabled,#ctl select:disabled{opacity:.5}
+  #ctl details{margin:4px 0;color:var(--mut)} #ctl details summary{cursor:pointer;font-size:12px}
+  #ctl details input{width:100%;box-sizing:border-box;margin-top:5px}
+  .seg{display:flex;flex:1;border:1px solid #30303a;border-radius:6px;overflow:hidden}
+  .seg button{flex:1;border:0 !important;border-radius:0 !important;background:var(--ctl)}
+  .seg button + button{border-left:1px solid #30303a !important}
+  .seg button.on{background:#20384a !important;color:var(--acc)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:flex;align-items:center;gap:5px;border:1px solid #30303a;border-radius:999px;padding:3px 10px;background:var(--ctl);cursor:pointer;user-select:none;font-size:12px}
+  .chip input{display:none}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid #666}
+  .chip:has(input:checked){border-color:#2b6a86;background:#14222b;color:var(--acc)}
+  .chip:has(input:checked)::before{background:var(--acc);border-color:var(--acc)}
+  #pred{display:inline-block;color:#9fe;background:#10241f;border:1px solid #1f4a3f;border-radius:999px;padding:2px 10px;font-size:12px}
+  #pred:empty{display:none}
+  #status{margin-top:8px;font-size:11px;line-height:1.35;color:var(--mut);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #legend{position:fixed;left:12px;bottom:12px;width:372px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+          padding:6px 10px 8px;backdrop-filter:blur(6px)}
+  #legend .lh{display:flex;align-items:center;cursor:pointer;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);padding:2px 0 4px}
+  #legend .lh span{flex:1}
+  #legend.closed .items,#legend.closed .foot{display:none}
+  #legend .it{display:flex;align-items:center;gap:8px;height:21px;white-space:nowrap}
+  #legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+  #legend .nm{width:118px;flex:none;color:var(--fg)}
+  #legend .ds{color:var(--mut);font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+  #legend .foot{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;display:flex;gap:12px;flex-wrap:wrap}
+  #panel{position:fixed;right:12px;top:96px;bottom:12px;width:320px;background:#0b0b0fe6;border:1px solid #222;border-radius:8px;padding:12px;overflow:auto;display:none}
+  #panel h2{margin:0 0 4px;font-size:16px}
+  #panel .k{color:#888}
+  #panel table{border-collapse:collapse;width:100%;margin:8px 0}
+  #panel td{padding:2px 4px;border-bottom:1px solid #1c1c22}
+  #panel canvas{display:inline-block;margin:1px;border:1px solid #222}
+  #hint{position:fixed;right:12px;bottom:12px;color:#666}
+  #card{position:fixed;left:396px;top:12px;width:400px;max-width:calc(100vw - 396px - 344px);max-height:calc(100vh - 24px);
+        overflow:auto;padding:10px 14px 12px;display:none;line-height:1.45;background:var(--bg);border:1px solid var(--line);
+        border-radius:10px;backdrop-filter:blur(6px);box-sizing:border-box}
+  #left > section, #legend{box-sizing:border-box}
+  #card h3{margin:0;font-size:15px}
+  #card .sub{color:#888;font-size:12px;margin:2px 0 6px}
+  #card .tag{color:#9fe;margin:4px 0 6px}
+  #card h4{margin:8px 0 2px;font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:.04em}
+  #card ul{margin:0;padding-left:18px} #card li{margin:2px 0}
+  #card .x{position:absolute;right:8px;top:6px;cursor:pointer;color:#888}
+  #panel .desc{margin:8px 0;padding:8px;background:#12121a;border-radius:6px;line-height:1.45}
+  #panel .desc p{margin:6px 0} #panel .desc .dt{font-weight:600;color:#e0e0e0}
+  #title{position:fixed;right:18px;top:12px;text-align:right;pointer-events:none;max-width:42vw}
+  #title .nm{font-size:30px;font-weight:800;letter-spacing:-0.01em;line-height:1.1;color:#fff;
+             text-shadow:0 0 22px rgba(92,220,255,.35),0 2px 0 rgba(0,0,0,.6)}
+  #title .nm i{font-style:normal;font-weight:300;opacity:.75}
+  #title .sb{margin-top:5px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ad}
+  #title .ln{height:2px;margin:7px 0 0 auto;width:64px;border-radius:2px;background:linear-gradient(90deg,transparent,#5cdcff)}
+  #arch{font-size:11.5px;color:var(--mut);margin:2px 2px 4px;line-height:1.35}
+  #arch b{color:#ffd54f;font-weight:600}
+  #ctrls .ct{margin:6px 0 2px;font-size:12px;color:var(--mut)}
+  #ctrls .ct span{color:var(--fg);float:right}
+  #ctrls input[type=range]{width:100%;accent-color:#5cdcff}
+  #ctl .metricrow{margin-top:8px} #ctl .metricrow label{color:var(--mut);font-size:12px;white-space:nowrap}
+  #bottom{position:fixed;left:396px;right:344px;bottom:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
+  #gallery{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}
+  #gallery:empty{display:none}
+  #gallery figure{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 5px 3px;text-align:center}
+  #gallery canvas{width:96px;height:96px;image-rendering:pixelated;display:block;border-radius:4px;background:#000}
+  #gallery figcaption{font-size:10.5px;color:var(--mut);margin-top:3px;max-width:96px;line-height:1.2}
+  #profile{pointer-events:auto;width:100%;max-width:640px;height:64px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+  #legend .mbar{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
+  #legend .mbar i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
+  #panel button.act{margin:8px 0;background:#16161d;color:#e4e4ea;border:1px solid #30303a;border-radius:6px;padding:5px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="gl"></div>
+<div id="labels"></div>
+<div id="left">
+  <section id="ctl">
+    <header>
+      <span class="brand">nnviz</span><span class="sub3d">3D</span><span class="sp"></span>
+      <button id="collapse" title="collapse / expand controls" style="padding:1px 8px">▾</button>
+    </header>
+    <div class="body">
+      <div class="sec">Model</div>
+      <div class="row">
+        <select id="model" class="grow"></select>
+        <label class="chip" title="show / hide the model card (key: I)"><input type="checkbox" id="cardtoggle" checked>info</label>
+      </div>
+      <div class="row">
+        <label class="chip" title="download torchvision pretrained weights on load (needs internet)"><input type="checkbox" id="pre">pretrained weights</label>
+        <span class="grow"></span>
+        <button id="upbtn" title="import a .py (build()) or a .pt/.pth whole-module file">import…</button>
+        <input type="file" id="file" accept=".py,.pt,.pth" style="display:none">
+      </div>
+      <div id="arch"></div>
+      <details><summary>import options</summary>
+        <input id="inshape" placeholder="input spec for .pt files: 1,3,224,224  or  int:1,32:50257">
+      </details>
+
+      <div class="sec">Input</div>
+      <div class="row"><select id="cls" class="grow"></select><button id="resample">new noise</button></div>
+      <div class="row"><span id="pred"></span></div>
+      <div id="ctrls"></div>
+
+      <div class="sec">View</div>
+      <div class="row">
+        <div class="seg" id="layoutseg">
+          <button data-v="line">line</button><button data-v="snake">folded grid</button><button data-v="spiral">spiral</button>
+        </div>
+        <select id="layout" style="display:none"><option value="line">line</option><option value="snake">folded grid</option><option value="spiral">spiral</option></select>
+      </div>
+      <div class="row">
+        <button id="fit" class="grow" title="frame the whole model (F)">fit view</button>
+        <button id="along" class="grow" title="camera behind the input, looking along the data flow">look along flow</button>
+      </div>
+
+      <div class="sec">Show</div>
+      <div class="chips">
+        <label class="chip"><input type="checkbox" id="showact" checked>activations</label>
+        <label class="chip"><input type="checkbox" id="showw" checked>weights</label>
+        <label class="chip"><input type="checkbox" id="showk" checked>kernel animation</label>
+        <label class="chip"><input type="checkbox" id="showl" checked>labels</label>
+        <label class="chip" title="translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>size envelope</label>
+        <label class="chip" title="animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>fold animation</label>
+        <label class="chip" title="coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>block floors</label>
+        <label class="chip" title="fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">collapse blocks</label>
+        <label class="chip" title="fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>easy rendering</label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="collapseall" class="grow" title="fold every repeated block into a single node">collapse all blocks</button>
+        <button id="expandall" class="grow" title="show every layer inside every block">expand all blocks</button>
+      </div>
+      <div class="row metricrow"><label for="metric">colour layers by</label>
+        <select id="metric" class="grow"><option value="type">layer type</option><option value="params">parameters</option>
+          <option value="flops">FLOPs (approx.)</option><option value="size">activation size</option>
+          <option value="sparsity">sparsity (zeros)</option><option value="mean_abs">mean |activation|</option>
+          <option value="residual">residual change ‖F(x)‖/‖x‖</option></select></div>
+      <div id="status"></div>
+    </div>
+  </section>
+</div>
+<div id="bottom"><div id="gallery"></div><canvas id="profile" width="640" height="64" title="tensor size along the main path (log scale) — click to jump"></canvas></div>
+<div id="title"></div>
+<div id="card"></div>
+<div id="legend"></div>
+<div id="panel"></div>
+<div id="hint">drag: orbit · right-drag: pan · wheel: zoom · click a layer</div>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="info.js"></script>
+<script>
+"use strict";
+const KIND = {
+  input:      {color:"#ffffff", label:"input",        desc:"image as a single slab"},
+  conv:       {color:"#26c6da", label:"convolution",  desc:"C slabs; a k×k×C_in kernel cuboid slides over the input"},
+  linear:     {color:"#66bb6a", label:"linear",       desc:"column of neurons, dense weight lines"},
+  attention:  {color:"#ab47bc", label:"attention",    desc:"X → Q,K,V → per-head softmax(QKᵀ) maps → ·V → concat → W_o"},
+  norm:       {color:"#ffca28", label:"normalization",desc:"cage that rescales the tensor"},
+  activation: {color:"#ff9800", label:"activation",   desc:"gate plate showing the function"},
+  pool:       {color:"#bcaaa4", label:"pooling",      desc:"sliding window, no weights"},
+  op:         {color:"#90a4ae", label:"tensor op",    desc:"reshape / reduce / add"},
+  embedding:  {color:"#4db6ac", label:"embedding",    desc:"lookup table: token id → vector"},
+  moe:        {color:"#d4e157", label:"mixture of experts", desc:"router plane (tokens × experts), top-k experts per token"},
+  upsample:   {color:"#5c6bc0", label:"up-sampling",  desc:"enlarges spatial size, no parameters"},
+  group:      {color:"#b0bec5", label:"collapsed block", desc:"repeated block shown as one node (double-click to expand)"},
+  output:     {color:"#ffffff", label:"output",       desc:"logits"},
+};
+const CELL = 0.5, SLAB = 0.75;
+const BASE = [38,38,54], HI = [90,220,255], NEG = [255,79,163];
+const T = THREE;
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+function fmtParams(n){
+  if (n == null) return "?";
+  if (n < 1e3) return `${n}`;
+  if (n < 1e6) return `${(n/1e3).toFixed(n < 1e4 ? 1 : 0)} K`;
+  if (n < 1e9) return `${(n/1e6).toFixed(n < 1e7 ? 2 : 1)} M`;
+  return `${(n/1e9).toFixed(2)} B`;
+}
+const lerp = (a,b,t) => a + (b-a)*t;
+function divColor(a){
+  const t = clamp(Math.abs(a), 0, 1), c = a >= 0 ? HI : NEG;
+  return new T.Color(lerp(BASE[0],c[0],t)/255, lerp(BASE[1],c[1],t)/255, lerp(BASE[2],c[2],t)/255);
+}
+const cssDiv = a => { const c = divColor(a); return `rgb(${c.r*255|0},${c.g*255|0},${c.b*255|0})`; };
+
+// ---------- three setup ----------
+const host = document.getElementById("gl");
+const renderer = new T.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);   // 'easy rendering' is on by default
+renderer.setSize(innerWidth, innerHeight);
+host.appendChild(renderer.domElement);
+const scene = new T.Scene(); scene.background = new T.Color(0x000000);
+const camera = new T.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 2000);
+const controls = new T.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.addEventListener("change", () => { needsRender = true; });
+let world = new T.Group(); scene.add(world);
+addEventListener("resize", () => { needsRender = true; renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); });
+
+// ---------- state ----------
+let G, A = null, nodeBy = {}, inc = {}, sel = null, seed = 0;
+let sweeps = [], labels = [], pickers = [], manyNodes = false, needsRender = true;
+const MODELS = {};
+const FLOORCOL = ["#4fc3f7", "#aed581", "#ffb74d", "#ba68c8", "#4db6ac", "#f06292", "#fff176", "#90a4ae"];
+let G0 = null, metricRange = null, paramVals = {}, visSpine = [];
+const expanded = new Set();
+
+const cellY = (g, r) => g.oy + (g.H-1-r)*CELL + CELL/2;
+const cellZ = (g, c) => g.oz + c*CELL + CELL/2;
+const slabX = (g, c) => g.ox + c*SLAB;
+const Wp = (n, v) => n.grp.localToWorld(v.clone());
+const HEADCOL = ["#e1bee7", "#9fa8da", "#f48fb1", "#80deea"];
+function cellPos(n, c, r, col){ const g = n.g; return new T.Vector3(slabX(g,c), cellY(g,r), cellZ(g,col)); }
+function unitPos(n, i){
+  const g = n.g;
+  if (g.type === "vol")  return new T.Vector3(slabX(g,i), g.oy + g.H*CELL/2, g.oz + g.W*CELL/2);
+  if (g.type === "grid") return new T.Vector3(g.ox, g.oy + g.H*CELL/2, cellZ(g,i));
+  return new T.Vector3(g.ox, cellY(g,i), g.oz + CELL/2);
+}
+
+// ---------- view graph: repeated blocks can be folded into single nodes ----------
+function blockId(p){
+  if (!p) return null;
+  const sg = p.split(".");
+  for (let i = 0; i < sg.length - 1; i++) if (/^\d+$/.test(sg[i]) || /_\d+$/.test(sg[i])) return sg.slice(0, i+1).join(".");
+  for (let i = sg.length - 2; i > 0; i--) if (/[A-Za-z]\d+$/.test(sg[i])) return sg.slice(0, i+1).join(".");
+  return null;
+}
+function makeView(){
+  const raw = G0.nodes, rawEdges = G0.edges, idx = {};
+  raw.forEach((n, i) => idx[n.name] = i);
+  const ins = {}; rawEdges.forEach(e => (ins[e.dst] ||= []).push(e.src));
+  const all = {};
+  raw.forEach(n => { const id = blockId(n.path); if (id) all[n.name] = id; });
+  raw.forEach(n => {                       // ops without a module path join the block of their latest input
+    if (all[n.name] || n.kind === "input" || n.kind === "output") return;
+    const i = ins[n.name] || []; if (!i.length) return;
+    const last = i.reduce((a, b) => idx[a] > idx[b] ? a : b);
+    if (all[last]) all[n.name] = all[last];
+  });
+  const cnt = {}; Object.values(all).forEach(g => cnt[g] = (cnt[g] || 0) + 1);
+  Object.keys(all).forEach(k => { if (cnt[all[k]] < 2) delete all[k]; });     // singletons are not blocks
+  const collapsed = {};
+  if ($("grpblocks").checked) Object.keys(all).forEach(k => { if (!expanded.has(all[k])) collapsed[k] = all[k]; });
+  const members = {};
+  raw.forEach(n => { const g = collapsed[n.name]; if (g) (members[g] ||= []).push(n); });
+  const nodes = [], emitted = new Set();
+  raw.forEach(n => {
+    const g = collapsed[n.name];
+    if (!g){ nodes.push({...n, block: all[n.name] || null}); return; }
+    if (emitted.has(g)) return;
+    emitted.add(g);
+    const ms = members[g], last = ms[ms.length - 1], kinds = {};
+    ms.forEach(m => kinds[m.label] = (kinds[m.label] || 0) + 1);
+    nodes.push({name: g, kind: "group", label: `${ms.length} layers`, units: last.units, shape: last.shape, tshape: last.tshape,
+                dshape: last.dshape, sampled: last.sampled, heads: null, params: ms.reduce((a, m) => a + m.params, 0),
+                attrs: {layers: ms.length}, path: g, numel: last.numel, flops: ms.reduce((a, m) => a + m.flops, 0),
+                members: ms.map(m => m.name), memberKinds: kinds, actKey: last.name, block: g});
+  });
+  const seen = new Set(), edges = [];
+  rawEdges.forEach(e => {
+    const a = collapsed[e.src] || e.src, b = collapsed[e.dst] || e.dst;
+    if (a === b) return;
+    const key = `${a}|${b}|${e.join || ""}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push(a !== e.src || b !== e.dst ? {src: a, dst: b, mode: "bundle", join: e.join} : {...e});
+  });
+  const repm = {}; raw.forEach(n => repm[n.name] = collapsed[n.name] || n.name);
+  const bcol = {}, seenB = [];
+  raw.forEach(n => { const id = all[n.name]; if (id && !(id in bcol)){ bcol[id] = FLOORCOL[seenB.length % FLOORCOL.length]; seenB.push(id); } });
+  return {...G0, nodes, edges, rep: repm, blockColors: bcol, blockCount: new Set(Object.values(all)).size,
+          collapsedCount: new Set(Object.values(collapsed)).size};
+}
+function updateBlockButtons(){
+  if (!G) return;
+  const n = G.blockCount || 0;
+  $("collapseall").disabled = n === 0 || G.collapsedCount === n;
+  $("expandall").disabled = n === 0 || G.collapsedCount === 0;
+  $("collapseall").title = n ? `fold all ${n} blocks into single nodes` : "this model has no repeated blocks";
+  $("expandall").title = n ? `show the layers inside all ${n} blocks` : "this model has no repeated blocks";
+}
+// ---------- fold / unfold animation ----------
+// 1 camera rises to an overview · 2 layers fold into their block *in place* (same colour) · 3 blocks glide into the
+// compact layout · 4 camera returns to what you were looking at (only if you were zoomed in). Expanding is the reverse.
+let folding = false, foldAnim = null;
+const ease = x => { x = clamp(x, 0, 1); return x < 0.5 ? 2*x*x : 1 - Math.pow(-2*x + 2, 2)/2; };
+const ZERO = new T.Vector3();
+function finishFold(){
+  if (!foldAnim) return;
+  foldAnim.ghosts.forEach(g => world.remove(g.mesh));
+  const end = foldAnim.cam && foldAnim.cam.end;
+  if (end){ camera.position.copy(end.pos); controls.target.copy(end.target); controls.update(); }
+  foldAnim = null; folding = false;
+  $("labels").style.visibility = "";
+  rebuild();
+  needsRender = true;
+}
+function transition(mutate, overview){
+  finishFold();
+  if (!$("animblocks").checked || !G || G.nodes.length > 350){ mutate(); rebuildAll(!overview); return; }
+  const loc = n => new T.Vector3(n.b.ox + n.b.sx/2, n.b.oy + n.b.sy/2, n.b.oz + n.b.sz/2);
+  const colOf = n => (G.blockColors && G.blockColors[n.block || n.name]) || KIND[n.kind].color;
+  const old = G.nodes.map(n => ({name: n.name, kind: n.kind, members: n.members || [n.name], center: Wp(n, loc(n)),
+                                 size: [n.b.sx, n.b.sy, n.b.sz], quat: n.grp.quaternion.clone(), color: colOf(n)}));
+  const oldCenter = {};
+  old.forEach(o => o.members.forEach(m => oldCenter[m] = o.center));
+  const camInit = {pos: camera.position.clone(), target: controls.target.clone()};
+  const oldFit = overview ? fit(false) : null;                       // overview framing of the current layout
+  let focusRaw = null, best = Infinity;
+  old.forEach(o => { const d = o.center.distanceTo(camInit.target); if (d < best){ best = d; focusRaw = o.members[0]; } });
+  mutate();
+  folding = true;
+  rebuildAll(true);
+  world.updateMatrixWorld(true);
+  const collapsing = G.nodes.length < old.length;
+  const fin = {};
+  G.nodes.forEach(n => fin[n.name] = {pos: n.grp.position.clone(), center: Wp(n, loc(n))});
+  const newFit = overview ? fit(false) : null;                       // overview framing of the new layout
+
+  const avg = vs => vs.length ? vs.reduce((a, v) => a.add(v), new T.Vector3()).multiplyScalar(1/vs.length) : null;
+  const span = {}, cnt = {};                                         // where each block's layers sit in the *new* layout
+  G.nodes.forEach(n => { if (n.block && n.kind !== "group"){ (span[n.block] ||= new T.Vector3()).add(fin[n.name].center); cnt[n.block] = (cnt[n.block] || 0) + 1; } });
+  Object.keys(span).forEach(k => span[k].multiplyScalar(1/cnt[k]));
+
+  const items = G.nodes.map(n => {
+    const F = fin[n.name].center, mem = n.members || [n.name];
+    const start = avg(mem.map(m => oldCenter[m]).filter(Boolean)) || F.clone();
+    let mid, hidden1 = false, showAt = 0;
+    if (collapsing){ mid = start.clone(); if (n.kind === "group") showAt = 0.55; }   // stays in place, then compacts
+    else if (n.block && span[n.block]){ mid = span[n.block].clone(); hidden1 = true; } // block moves apart first, then unfolds
+    else mid = F.clone();
+    return {n, to: fin[n.name].pos, off0: start.sub(F), offM: mid.sub(F), hidden1, showAt};
+  });
+
+  const ghosts = [];
+  const addGhost = (o, from, to, kind) => {
+    const mat = new T.MeshBasicMaterial({color: new T.Color(o.color), transparent: true, opacity: 0.55, depthWrite: false});
+    const mesh = new T.Mesh(new T.BoxGeometry(o.size[0] + 0.3, o.size[1] + 0.3, o.size[2] + 0.3), mat);
+    mesh.position.copy(from); mesh.quaternion.copy(o.quat);
+    world.add(mesh);
+    ghosts.push({mesh, mat, from, to, kind});
+  };
+  if (collapsing){
+    old.forEach(o => {                                               // each layer shrinks into its block, in its colour
+      if (o.kind === "group") return;
+      const tgt = G.rep[o.members[0]];
+      if (!tgt || tgt === o.name || !nodeBy[tgt] || nodeBy[tgt].kind !== "group") return;
+      const to = avg(nodeBy[tgt].members.map(m => oldCenter[m]).filter(Boolean)) || o.center;
+      addGhost(o, o.center, to, "shrink");
+    });
+  } else {
+    old.forEach(o => { if (o.kind === "group" && span[o.name]) addGhost(o, o.center, span[o.name], "split"); });
+  }
+
+  // camera plan
+  let cam = null;
+  if (overview){
+    const big = oldFit.dist >= newFit.dist ? oldFit : newFit;
+    let ret = null;
+    if (camInit.pos.distanceTo(camInit.target) < 0.6 * newFit.dist && focusRaw){
+      const fn = nodeBy[G.rep[focusRaw]];
+      if (fn){ const Tg = fin[fn.name].center.clone(); ret = {pos: Tg.clone().add(camInit.pos.clone().sub(camInit.target)), target: Tg}; }
+    }
+    cam = {init: camInit, big, fin: newFit, ret, end: ret || newFit};
+  }
+  const ph0 = overview ? 450 : 0, ph1 = 600, ph2 = 700, ph3 = cam && cam.ret ? 500 : 0;
+  $("labels").style.visibility = "hidden";
+  foldAnim = {t0: performance.now(), ph0, ph1, ph2, ph3, b0: ph0, b1: ph0 + ph1, b2: ph0 + ph1 + ph2, b3: ph0 + ph1 + ph2 + ph3,
+              items, ghosts, cam};
+  stepFold();
+  needsRender = true;
+}
+function stepFold(){
+  const fa = foldAnim;
+  if (!fa) return;
+  const el = performance.now() - fa.t0;
+  const p1 = ease((el - fa.b0)/fa.ph1), p2 = ease((el - fa.b1)/fa.ph2);
+  fa.items.forEach(it => {
+    const off = it.off0.clone().lerp(it.offM, p1).lerp(ZERO, p2);
+    it.n.grp.position.copy(it.to).add(off);
+    it.n.grp.visible = !(it.hidden1 && el < fa.b1) && !(it.showAt && p1 < it.showAt);
+  });
+  fa.ghosts.forEach(g => {
+    g.mesh.position.lerpVectors(g.from, g.to, p1);
+    if (g.kind === "shrink"){ g.mesh.scale.setScalar(lerp(1, 0.2, p1)); g.mat.opacity = 0.55*(1 - p1); }
+    else { g.mesh.scale.setScalar(lerp(1, 1.12, p2)); g.mat.opacity = 0.55*(1 - p2); }
+  });
+  if (fa.cam){
+    const c = fa.cam;
+    let pos, tg;
+    if (el < fa.b0){ const k = ease(el/fa.ph0); pos = c.init.pos.clone().lerp(c.big.pos, k); tg = c.init.target.clone().lerp(c.big.target, k); }
+    else if (el < fa.b1){ pos = c.big.pos; tg = c.big.target; }
+    else if (el < fa.b2){ pos = c.big.pos.clone().lerp(c.fin.pos, p2); tg = c.big.target.clone().lerp(c.fin.target, p2); }
+    else if (c.ret){ const k = ease((el - fa.b2)/fa.ph3); pos = c.fin.pos.clone().lerp(c.ret.pos, k); tg = c.fin.target.clone().lerp(c.ret.target, k); }
+    else { pos = c.fin.pos; tg = c.fin.target; }
+    camera.position.copy(pos); controls.target.copy(tg);
+  }
+  needsRender = true;
+  if (el >= fa.b3) finishFold();
+}
+
+function rebuildAll(keepCam){
+  const selName = sel && sel.name;
+  G = makeView();
+  nodeBy = {}; inc = {};
+  manyNodes = G.nodes.length > 40;
+  layout(); arrange($("layout").value);
+  sel = selName && nodeBy[selName] ? nodeBy[selName] : null;
+  rebuild(); renderLegend(); showPanel(); updateBlockButtons();
+  if (!keepCam) fit();
+}
+
+// ---------- layout ----------
+function layout(){
+  G.nodes.forEach(n => { nodeBy[n.name] = n; inc[n.name] = []; });
+  G.edges.forEach(e => inc[e.dst].push(e.src));
+  const visiting = new Set();
+  const depthOf = n => {
+    if (n.depth != null) return n.depth;
+    if (visiting.has(n.name)) return 0;
+    visiting.add(n.name);
+    n.depth = Math.max(-1, ...inc[n.name].map(p => depthOf(nodeBy[p]))) + 1;
+    visiting.delete(n.name);
+    return n.depth;
+  };
+  G.nodes.forEach(depthOf);
+  G.nodes.forEach(n => {
+    const s = n.dshape;      // batch-free, sampled for display
+    n.g = s.length === 3 ? {type:"vol", C:s[0], H:s[1], W:s[2]}
+        : s.length === 2 ? {type:"grid", C:1, H:s[0], W:s[1]}
+        : {type:"vec", C:1, H:s[0], W:1};
+    const g = n.g;
+    g.sx = g.C*SLAB; g.sy = g.H*CELL; g.sz = g.W*CELL;
+    n.headPlanes = n.kind === "attention" && n.heads && g.type === "grid" && n.weights && n.weights.qkv ? n.heads : 0;
+    n.b = {sx: g.sx, sy: g.sy, sz: g.sz, off: 0};
+    n.moe = n.kind === "moe" && g.type === "grid" ? (n.attrs.num_experts || 0) : 0;
+    if (n.moe){ n.b.off = 4; n.b.sx = 4 + g.sx; n.b.sz = Math.max(g.sz, Math.min(n.moe, 32)*CELL); }
+    if (n.headPlanes){
+      const hx = 3.4, cx = hx + n.headPlanes*SLAB + 3.0;
+      n.att = {qx: 0, hx, cx, gap: 1.6};
+      n.b.off = cx + 3.4; n.b.sx = n.b.off + g.sx;
+      n.b.sy = g.sy; n.b.sz = Math.max(3*g.sz + 2*n.att.gap, g.H*CELL);
+    }
+  });
+  G.edges.forEach(e => { e.skip = nodeBy[e.dst].depth - nodeBy[e.src].depth > 1; });
+  const cols = {};
+  G.nodes.forEach(n => (cols[n.depth] ||= []).push(n));
+  let X = 0;
+  Object.keys(cols).map(Number).sort((a,b) => a-b).forEach(d => {
+    const ns = cols[d], tot = ns.reduce((a,n) => a + n.b.sz, 0) + 5*(ns.length-1);
+    let z = -tot/2, ext = 0;
+    ns.forEach(n => {
+      n.b.ox = X; n.b.oy = -n.b.sy/2; n.b.oz = z; z += n.b.sz + 5; ext = Math.max(ext, n.b.sx);
+      const g = n.g;
+      g.ox = n.b.ox + n.b.off; g.oy = -g.sy/2; g.oz = n.b.oz + (n.b.sz - g.sz)/2;
+    });
+    cols[d].info = {cx: X + ext/2, ext, zext: tot};
+    ns.forEach(n => { n.colExt = ext; n.colCx = X + ext/2; });
+    X += ext + 4;
+  });
+  G.cols = Object.keys(cols).map(Number).sort((a,b) => a-b).map(d => ({d, nodes: cols[d], ...cols[d].info}));
+  G.totalLen = X;
+}
+
+// poses: world = P + R(yaw)·(local − (cx,0,0)); each depth column is one station on the path
+function arrange(mode){
+  const C = G.cols, nc = C.length;
+  const pose = (col, px, py, pz, yaw) => col.nodes.forEach(n => n.pose = {px, py, pz, yaw, cx: col.cx});
+  if (mode === "snake"){
+    const rows = Math.max(3, Math.min(14, Math.round(Math.sqrt(nc/2)))), per = Math.ceil(nc/rows), rowGap = Math.max(...C.map(c => c.zext)) + 12;
+    for (let r = 0; r < rows; r++){
+      const row = C.slice(r*per, (r+1)*per); if (!row.length) continue;
+      let x = 0; const xs = row.map(c => { const p = x + c.ext/2; x += c.ext + 5; return p; });
+      const width = x - 5;
+      row.forEach((c, i) => r % 2 === 0 ? pose(c, xs[i], 0, r*rowGap, 0) : pose(c, width - xs[i], 0, r*rowGap, Math.PI));
+    }
+  } else if (mode === "spiral"){
+    const turn = Math.max(...C.map(c => c.zext)) + 14, rise = 11, k = turn/(2*Math.PI);
+    const r0 = Math.max(10, G.totalLen/(2*Math.PI*1.8));
+    let th = 0, arc = 0;
+    // input on the outside, output at the centre: walk the spiral from the centre outward
+    // placing the LAST station first, and flow along the reversed (inward) tangent
+    [...C].reverse().forEach(c => {
+      const target = G.totalLen - 4 - c.cx;
+      while (arc < target){ const r = r0 + k*th; arc += Math.hypot(r, k)*0.002; th += 0.002; }
+      const r = r0 + k*th, px = r*Math.cos(th), pz = r*Math.sin(th);
+      const tx = -r*Math.sin(th) + k*Math.cos(th), tz = r*Math.cos(th) + k*Math.sin(th);
+      pose(c, px, th/(2*Math.PI)*rise, pz, Math.atan2(tz, -tx));   // direction (−tx, −tz): inward
+    });
+  } else C.forEach(c => pose(c, c.cx, 0, 0, 0));
+}
+function applyPose(n){
+  const p = n.pose, g = n.grp;
+  g.rotation.set(0, p.yaw, 0);
+  const off = new T.Vector3(p.cx, 0, 0).applyAxisAngle(new T.Vector3(0,1,0), p.yaw);
+  g.position.set(p.px - off.x, p.py - off.y, p.pz - off.z);
+}
+
+// ---------- builders ----------
+function tensorVal(t, g, c, r, col){
+  if (!t) return 0;
+  return g.type === "vol" ? t[c][r][col] : g.type === "grid" ? t[r][col] : t[r];
+}
+const geoBox = new T.BoxGeometry(0.1, CELL*0.88, CELL*0.88);
+const geoSphere = new T.SphereGeometry(CELL*0.38, 14, 10);
+const matCell = new T.MeshBasicMaterial();
+
+function makeCells(items, geo){
+  const mesh = new T.InstancedMesh(geo, matCell, items.length), m = new T.Matrix4();
+  items.forEach((it, k) => { m.setPosition(it.p); mesh.setMatrixAt(k, m); mesh.setColorAt(k, it.c); });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  return mesh;
+}
+function outline(cx, cy, cz, sx, sy, sz, color, lw){
+  const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(sx, sy, sz)),
+                               new T.LineBasicMaterial({color}));
+  e.position.set(cx, cy, cz); return e;
+}
+const gateCache = {};
+function gateTexture(label){
+  if (gateCache[label]) return gateCache[label];
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const x = c.getContext("2d");
+  x.fillStyle = "rgba(255,152,0,0.12)"; x.fillRect(0,0,128,128);
+  x.strokeStyle = "#ff9800"; x.lineWidth = 4; x.strokeRect(2,2,124,124);
+  x.strokeStyle = "#664"; x.lineWidth = 1; x.beginPath(); x.moveTo(10,64); x.lineTo(118,64); x.moveTo(64,10); x.lineTo(64,118); x.stroke();
+  const sg = v => 1/(1+Math.exp(-v)), L = label.toLowerCase();
+  const f = L.includes("relu") && !L.includes("leaky") ? v => Math.max(0,v)
+          : L.includes("leaky") ? v => v > 0 ? v : 0.1*v
+          : L.includes("gelu") ? v => v*sg(1.702*v) : L.includes("silu") ? v => v*sg(v)
+          : L.includes("sigmoid") ? v => 2*sg(v)-1 : L.includes("tanh") ? Math.tanh : v => v;
+  x.strokeStyle = "#ffcc80"; x.lineWidth = 3; x.beginPath();
+  for (let i = 0; i <= 100; i++){ const v = -3 + 6*i/100, px = 10 + 108*i/100, py = 64 - clamp(f(v),-3,3)*17;
+    i ? x.lineTo(px,py) : x.moveTo(px,py); }
+  x.stroke();
+  return gateCache[label] = new T.CanvasTexture(c);
+}
+
+function addSweep(n, kind){
+  const srcName = inc[n.name][0]; if (!srcName) return;
+  const src = nodeBy[srcName], a = n.attrs;
+  const arr = v => Array.isArray(v) ? v : [v, v];
+  const [kh, kw] = arr(a.kernel_size ?? 2), [sh, sw] = arr(a.stride ?? a.kernel_size ?? 2), [ph, pw] = arr(a.padding ?? 0);
+  if (src.g.type !== "vol" || n.g.type !== "vol") return;
+  const cin = kind === "conv" ? src.g.C : 1;
+  const khd = Math.max(1, kh*src.g.H/(src.tshape[1] || src.g.H)), kwd = Math.max(1, kw*src.g.W/(src.tshape[2] || src.g.W));
+  const col = new T.Color(KIND[kind].color);
+  const box = new T.Mesh(new T.BoxGeometry(cin*SLAB, khd*CELL, kwd*CELL),
+                         new T.MeshBasicMaterial({color: col, transparent: true, opacity: 0.22, depthWrite: false}));
+  const wire = outline(0,0,0, cin*SLAB, khd*CELL, kwd*CELL, col); box.add(wire);
+  const marker = outline(0,0,0, 0.18, CELL*1.05, CELL*1.05, 0xffffff);
+  const line = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(), new T.Vector3()]),
+                          new T.LineBasicMaterial({color: col, transparent: true, opacity: 0.8}));
+  world.add(box, marker, line);
+  sweeps.push({n, src, kh, kw, sh, sw, ph, pw, cin, kind, box, marker, line, W: n.g.W, H: n.g.H, C: n.g.C});
+}
+
+function refreshSweeps(){
+  sweeps.forEach(sw => world.remove(sw.box, sw.marker, sw.line));
+  sweeps = [];
+  const all = !($("easy").checked && manyNodes);
+  G.nodes.forEach(n => { if ((n.kind === "conv" || n.kind === "pool") && (all || n === sel)) addSweep(n, n.kind); });
+  needsRender = true;
+}
+
+function updateSweeps(time, on){
+  sweeps.forEach(s => {
+    s.box.visible = s.marker.visible = s.line.visible = on;
+    if (!on) return;
+    const per = s.H*s.W, step = Math.floor(time*7), idx = step % per;
+    const ch = Math.floor(step/per) % s.C;
+    const oh = Math.floor(idx / s.W), ow = idx % s.W;
+    const rc = (oh + 0.5)*(s.src.g.H/s.H) - 0.5, cc = (ow + 0.5)*(s.src.g.W/s.W) - 0.5;
+    const sg = s.src.g, inCh = s.kind === "conv" ? (s.cin-1)/2 : Math.min(ch, sg.C-1);
+    s.box.position.copy(Wp(s.src, new T.Vector3(sg.ox + inCh*SLAB, sg.oy + (sg.H-1-rc)*CELL + CELL/2, sg.oz + cc*CELL + CELL/2)));
+    s.box.quaternion.copy(s.src.grp.quaternion);
+    const out = Wp(s.n, cellPos(s.n, ch, oh, ow));
+    s.marker.position.copy(out); s.marker.quaternion.copy(s.n.grp.quaternion);
+    const p = s.line.geometry.attributes.position;
+    p.setXYZ(0, s.box.position.x, s.box.position.y, s.box.position.z); p.setXYZ(1, out.x, out.y, out.z);
+    p.needsUpdate = true;
+  });
+}
+
+function metricValue(n, m){
+  const a = A && A.acts[n.actKey || n.name];
+  switch (m){
+    case "params": return n.params > 0 ? n.params : null;
+    case "flops": return n.flops > 0 ? n.flops : null;
+    case "size": return n.numel;
+    case "sparsity": return a && a.stats ? a.stats.sparsity : null;
+    case "mean_abs": return a && a.stats ? a.stats.mean_abs : null;
+    case "residual": return a && a.delta != null ? a.delta : null;
+  }
+  return null;
+}
+const METRIC_LOG = {params: true, flops: true, size: true, mean_abs: true, residual: true, sparsity: false};
+function computeMetricRange(){
+  const m = $("metric").value;
+  metricRange = null;
+  if (m === "type") return;
+  const vals = G.nodes.map(n => metricValue(n, m)).filter(v => v != null && isFinite(v));
+  if (!vals.length) return;
+  const f = METRIC_LOG[m] ? (v => Math.log10(Math.max(v, 1e-9))) : (v => v);
+  metricRange = {m, f, lo: Math.min(...vals.map(f)), hi: Math.max(...vals.map(f)), raw: [Math.min(...vals), Math.max(...vals)]};
+}
+function rampColor(t){
+  const S = [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]], x = t*4, i = Math.min(3, Math.floor(x)), f = x - i;
+  return new T.Color(lerp(S[i][0], S[i+1][0], f)/255, lerp(S[i][1], S[i+1][1], f)/255, lerp(S[i][2], S[i+1][2], f)/255);
+}
+function metricColor(n){
+  if (!metricRange) return null;
+  const v = metricValue(n, metricRange.m);
+  if (v == null || !isFinite(v)) return new T.Color(0x3a3a46);
+  return rampColor(clamp((metricRange.f(v) - metricRange.lo) / (metricRange.hi - metricRange.lo + 1e-9), 0, 1));
+}
+
+function buildNode(n, acts, showAct){
+  const k = KIND[n.kind], g = n.g, a = acts && acts[n.actKey || n.name];
+  const t = a && a.tensor;
+  const items = []; let mx = 1e-6;
+  const get = (c,r,col) => showAct ? tensorVal(t, g, c, r, col) : 0;
+  if (showAct && t) { const f = JSON.stringify; mx = Math.max(1e-6, ...(t.flat(3).map(Math.abs))); }
+  for (let c = 0; c < g.C; c++) for (let r = 0; r < g.H; r++) for (let col = 0; col < g.W; col++)
+    items.push({p: cellPos(n, c, r, col), c: showAct && t ? divColor(get(c,r,col)/mx) : divColor(0)});
+  n.grp.add(makeCells(items, g.type === "vec" && n.kind !== "output" ? geoSphere : geoBox));
+  const cx = g.ox + (g.C-1)*SLAB/2, cy = g.oy + g.sy/2, cz = g.oz + g.sz/2;
+  const pad = n.kind === "norm" ? 0.45 : 0.15;
+  const mcol = metricColor(n), ocol = mcol || new T.Color(k.color);
+  n.grp.add(outline(cx, cy, cz, g.sx + pad + 0.1, g.sy + pad, g.sz + pad, ocol));
+  if (n.kind === "norm") n.grp.add(outline(cx, cy, cz, g.sx + 0.1, g.sy + 0.2, g.sz + 0.2, ocol));
+  if (n.kind === "group") n.grp.add(outline(cx, cy, cz, g.sx + 0.9, g.sy + 0.9, g.sz + 0.9, ocol));
+  if (mcol){
+    const halo = new T.Mesh(new T.BoxGeometry(g.sx + 0.5, g.sy + 0.5, g.sz + 0.5),
+                            new T.MeshBasicMaterial({color: mcol, transparent: true, opacity: 0.22, depthWrite: false}));
+    halo.position.set(cx, cy, cz); n.grp.add(halo);
+  }
+
+  if (n.kind === "activation"){
+    const plate = new T.Mesh(new T.PlaneGeometry(g.sz + 0.8, g.sy + 0.8),
+      new T.MeshBasicMaterial({map: gateTexture(n.label), transparent: true, opacity: 0.9, side: T.DoubleSide, depthWrite: false}));
+    plate.rotation.y = -Math.PI/2;   // faces the input side; curve reads left→right looking along the flow
+    plate.position.set(g.ox - 0.55, cy, cz);
+    n.grp.add(plate);
+  }
+  if (n.headPlanes) buildAttention(n, a, showAct);
+  if (n.moe){
+    const M = showAct && a && a.gates, E = M ? M[0].length : Math.min(n.moe, 32), Tn = g.H, zc = n.b.oz + n.b.sz/2;
+    const mx = M ? Math.max(1e-6, ...M.flat()) : 1, items = [];
+    for (let r = 0; r < Tn; r++) for (let c = 0; c < E; c++)
+      items.push({p: new T.Vector3(n.b.ox, (Tn-1-r)*CELL - Tn*CELL/2 + CELL/2, zc - E*CELL/2 + c*CELL + CELL/2),
+                  c: divColor(M ? M[r][c]/mx : 0)});
+    n.grp.add(makeCells(items, geoBox));
+    n.grp.add(outline(n.b.ox, 0, zc, 0.12, Tn*CELL + 0.15, E*CELL + 0.15, new T.Color(k.color)));
+    addLabel(n, "router: tokens × experts", new T.Vector3(n.b.ox, Tn*CELL/2 + 0.9, zc), "#e6ee9c", "", true);
+  }
+  if (n.kind === "output"){
+    if (n.units === G.classes.length && n.g.H === n.units) G.classes.forEach((c, i) => addLabel(n, c, cellPos(n, 0, i, 0).add(new T.Vector3(0, 0, 0.9)), "#ccc", "", true));
+  }
+  // picking proxy
+  const pk = new T.Mesh(new T.BoxGeometry(n.b.sx + 0.5, n.b.sy + 0.5, n.b.sz + 0.5),
+                        new T.MeshBasicMaterial({visible: false}));
+  pk.position.set(n.b.ox + n.b.sx/2 - 0.2, n.b.oy + n.b.sy/2, n.b.oz + n.b.sz/2);
+  pk.userData.node = n; n.grp.add(pk); pickers.push(pk);
+  addLabel(n, n.name, new T.Vector3(n.b.ox + n.b.sx/2, n.b.oy + n.b.sy + 0.5, n.b.oz + n.b.sz/2), k.color,
+           `${n.label} · [${n.tshape.join("×")}]${n.sampled ? "*" : ""}` + (n.headPlanes ? (() => {
+             const tot = n.attrs.heads || n.attrs.num_heads || n.headPlanes;
+             return ` · ${tot} heads` + (n.attrs.kv_heads && n.attrs.kv_heads !== tot ? ` / ${n.attrs.kv_heads} KV` : "") +
+                    (n.attrs.window ? ` · window ${n.attrs.window}` : "") + (tot > n.headPlanes ? ` (${n.headPlanes} shown)` : ""); })() : "") +
+           (n.moe ? ` · ${n.attrs.num_experts} experts, top-${n.attrs.top_k}` : ""), false, n);
+}
+
+function buildAttention(n, a, showAct){
+  const g = n.g, b = n.b, att = n.att, Tn = g.H, D = g.W, H = n.heads, dh = D/H, grp = n.grp;
+  const zmid = b.oz + b.sz/2, qkv = showAct && a && a.qkv, hm = showAct && a && a.attn;
+  const kc = new T.Color(KIND.attention.color), hc = h => new T.Color(HEADCOL[h % HEADCOL.length]);
+  const laneZ = l => zmid + (l-1)*(g.sz + att.gap);
+  const colZ = (zc, hh) => zc - D*CELL/2 + (hh*dh + dh/2)*CELL;     // centre of head hh's columns
+  const items = (M, x, zc, rows, cols) => {
+    const mx = M ? Math.max(1e-6, ...M.flat().map(Math.abs)) : 1, out = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+      out.push({p: new T.Vector3(x, (rows-1-r)*CELL - rows*CELL/2 + CELL/2, zc - cols*CELL/2 + c*CELL + CELL/2),
+                c: divColor(M ? M[r][c]/mx : 0)});
+    return out;
+  };
+  const block = (M, x, zc, rows, cols, thick, headCols) => {
+    grp.add(makeCells(items(M, x, zc, rows, cols), geoBox));
+    grp.add(outline(x, 0, zc, thick, rows*CELL + 0.15, cols*CELL + 0.15, kc));
+    if (headCols) for (let h = 0; h < H; h++)
+      grp.add(outline(x, 0, colZ(zc, h), thick + 0.1, rows*CELL + 0.35, dh*CELL, hc(h)));
+  };
+  const lbl = (text, x, zc, y) => addLabel(n, text, new T.Vector3(x, y ?? (Tn*CELL/2 + 0.9), zc), "#d1a8e0", "", true);
+  const qx = b.ox + att.qx, cx = b.ox + att.cx;
+  [["q", "Q = X·W_q"], ["k", "K = X·W_k"], ["v", "V = X·W_v"]].forEach(([key, text], l) => {
+    block(qkv && qkv[key], qx, laneZ(l), Tn, D, 0.12, true);
+    lbl(text, qx, laneZ(l));
+  });
+  for (let h = 0; h < H; h++){
+    const x = b.ox + att.hx + h*SLAB;
+    block(hm && hm[h], x, zmid, Tn, Tn, 0.12, false);
+    grp.add(outline(x, 0, zmid, 0.2, Tn*CELL + 0.3, Tn*CELL + 0.3, hc(h)));
+  }
+  lbl("softmax(Q·Kᵀ/√d) per head", b.ox + att.hx + H*SLAB/2, zmid, Tn*CELL/2 + 1.6);
+  block(qkv && qkv.ctx, cx, zmid, Tn, D, 0.12, true);
+  lbl("A·V (heads concat) → W_o", cx, zmid);
+  // data flow inside the block, one colour per head
+  for (let h = 0; h < H; h++){
+    const pts = [], P = new T.Vector3(b.ox + att.hx + h*SLAB, 0, zmid);
+    const q = new T.Vector3(qx + 0.1, 0, colZ(laneZ(0), h)), k = new T.Vector3(qx + 0.1, 0, colZ(laneZ(1), h));
+    const v = new T.Vector3(qx + 0.1, 0, colZ(laneZ(2), h)), c = new T.Vector3(cx - 0.1, 0, colZ(zmid, h));
+    [[q, P], [k, P], [P, c], [v, c]].forEach(([u, w]) => pts.push(u.x, u.y, u.z, w.x, w.y, w.z));
+    const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+    grp.add(new T.LineSegments(geo, new T.LineBasicMaterial({color: hc(h), transparent: true, opacity: 0.55})));
+  }
+}
+
+function addLabel(n, text, pos, color, sub, small, node){
+  pos = Wp(n, pos);
+  const d = document.createElement("div"); d.className = "lb";
+  d.innerHTML = `<b style="color:${color};${small?"font-size:11px;font-weight:500":""}">${text}</b>${sub ? `<span>${sub}</span>` : ""}`;
+  document.getElementById("labels").appendChild(d);
+  labels.push({d, pos, node});
+}
+
+const dispUnits = n => n.g.type === "vol" ? n.g.C : n.g.type === "grid" ? n.g.W : n.g.H;
+function buildEdges(showW){
+  const flow = [], unit = [], unitCol = [], skip = [], skipEdges = [];
+  const order = {}; G.nodes.forEach((n, i) => order[n.name] = i);
+  const bIdx = G.analysis && G.analysis.bottleneck ? order[G.rep[G.analysis.bottleneck]] : null;
+  const spineSet = new Set(G.analysis ? G.analysis.spine.map(nm => G.rep[nm]) : []);
+  const push = (arr, p) => arr.push(p.x, p.y, p.z);
+  const easy = $("easy").checked, thin = easy && manyNodes;
+  const addU = (p, q, w, ident) => {
+    if (!ident && thin && Math.abs(w) < 0.25) return;      // keep only the strong weights
+    push(unit, p); push(unit, q);
+    const al = ident ? 0.35 : 0.12 + 0.88*Math.abs(w);
+    const c = ident ? [0.6,0.65,0.75] : (w >= 0 ? [1,1,1] : [1,0.31,0.64]);
+    unitCol.push(c[0]*al, c[1]*al, c[2]*al, c[0]*al, c[1]*al, c[2]*al);
+  };
+  G.edges.forEach(e => {
+    const a = nodeBy[e.src], b = nodeBy[e.dst], ga = a.g, gb = b.g;
+    const pa = Wp(a, new T.Vector3(ga.ox + ga.sx, ga.oy + ga.sy/2, ga.oz + ga.sz/2));
+    const pb = Wp(b, new T.Vector3(b.b.ox, gb.oy + gb.sy/2, gb.oz + gb.sz/2));
+    if (e.skip){
+      const p0 = Wp(a, new T.Vector3(ga.ox + ga.sx/2, ga.oy + ga.sy + 0.3, ga.oz + ga.sz/2));
+      const p2 = Wp(b, new T.Vector3(b.b.ox + b.b.sx/2, gb.oy + gb.sy + 0.3, gb.oz + gb.sz/2));
+      const mid = p0.clone().add(p2).multiplyScalar(0.5); mid.y += 6 + p0.distanceTo(p2)*0.12;
+      // only concatenation skips are "bypassing" the bottleneck; adds fed from a side branch (e.g. the timestep
+      // embedding) are conditioning, not information shortcuts
+      const crosses = e.join === "cat" && bIdx != null && order[e.src] < bIdx && bIdx < order[e.dst];
+      skipEdges.push({curve: new T.QuadraticBezierCurve3(p0, mid, p2), join: e.join || "add", ch: a.units, crosses,
+                      side: !spineSet.has(e.src)});
+      return;
+    }
+    push(flow, pa); push(flow, pb);
+    if (!showW) return;
+    if (b.headPlanes && b.weights.qkv[0].length === a.g.W){              // X -> Q,K,V (real W_q,W_k,W_v) and ctx -> out (W_o)
+      const att = b.att, D = b.g.W, Wq = b.weights.qkv, Wo = b.weights.o;
+      const mx = Math.max(1e-9, ...Wq.flat().map(Math.abs), ...Wo.flat().map(Math.abs));
+      const zmid = b.b.oz + b.b.sz/2, laneZ = l => zmid + (l-1)*(b.g.sz + att.gap);
+      for (let l = 0; l < 3; l++) for (let j = 0; j < D; j++) for (let i = 0; i < Wq[0].length; i++)
+        addU(Wp(a, unitPos(a, i)), Wp(b, new T.Vector3(b.b.ox + att.qx, 0, laneZ(l) - D*CELL/2 + j*CELL + CELL/2)),
+             Wq[l*D + j][i]/mx, false);
+      for (let i = 0; i < D; i++) for (let j = 0; j < D; j++)
+        addU(Wp(b, new T.Vector3(b.b.ox + att.cx, 0, zmid - D*CELL/2 + i*CELL + CELL/2)), Wp(b, unitPos(b, j)), Wo[j][i]/mx, false);
+      return;
+    }
+    if (e.mode === "dense"){
+      const lim = easy ? (b.units > 256 ? 40 : 150) : 600;      // e.g. the 1000-way classifier head
+      e.sparse.slice(0, lim).forEach(([i,j,w]) => addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,j)), w, false));
+    } else if (e.mode === "identity" && !thin) for (let i = 0; i < Math.min(dispUnits(a), dispUnits(b)); i++) addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,i)), 0, true);
+  });
+  const mk = (arr, mat) => { const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(arr, 3)); return [geo, new T.LineSegments(geo, mat)]; };
+  world.add(mk(flow, new T.LineBasicMaterial({color: 0x556070, transparent: true, opacity: 0.8}))[1]);
+  const JC = {cat: 0x4dd0e1, add: 0xffffff, mul: 0xffb74d, bypass: 0xffd54f, side: 0xb39ddb};
+  const arcKey = sk => sk.crosses ? "bypass" : sk.join === "cat" ? "cat" : sk.side ? "side" : (sk.join === "mul" ? "mul" : "add");
+  if (skipEdges.length <= 60){
+    skipEdges.forEach(sk => {
+      const r = clamp(0.05 + 0.03*Math.log2(Math.max(2, sk.ch)), 0.06, 0.32);
+      world.add(new T.Mesh(new T.TubeGeometry(sk.curve, 40, sk.crosses ? r*1.4 : r, 6, false),
+        new T.MeshBasicMaterial({color: JC[arcKey(sk)], transparent: true, opacity: 0.8})));
+    });
+  } else {
+    const by = {};
+    skipEdges.forEach(sk => { const a2 = (by[arcKey(sk)] ||= []), pts = sk.curve.getPoints(24);
+      for (let i = 0; i < pts.length-1; i++){ push(a2, pts[i]); push(a2, pts[i+1]); } });
+    Object.entries(by).forEach(([j, arr]) => world.add(mk(arr, new T.LineBasicMaterial({color: JC[j] || 0xffffff, transparent: true, opacity: 0.55}))[1]));
+  }
+  if (unit.length){
+    const [geo, l] = mk(unit, new T.LineBasicMaterial({vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false}));
+    geo.setAttribute("color", new T.Float32BufferAttribute(unitCol, 3)); world.add(l);
+  }
+}
+
+// bake every node's cells and outlines into one instanced mesh per geometry + one line buffer
+function mergeStatic(){
+  world.updateMatrixWorld(true);
+  const inst = new Map(), lp = [], lc = [];
+  const m = new T.Matrix4(), c = new T.Color(), v = new T.Vector3();
+  G.nodes.forEach(n => {
+    [...n.grp.children].forEach(o => {
+      if (o.isInstancedMesh){
+        let e = inst.get(o.geometry); if (!e) inst.set(o.geometry, e = {mats: [], cols: []});
+        for (let k = 0; k < o.count; k++){
+          o.getMatrixAt(k, m); m.premultiply(o.matrixWorld);
+          e.mats.push(m.clone()); e.cols.push(c.fromArray(o.instanceColor.array, k*3).clone());
+        }
+        n.grp.remove(o); o.dispose();
+      } else if (o.isLineSegments && !o.material.vertexColors && !o.material.transparent){
+        const pos = o.geometry.attributes.position, col = o.material.color;
+        for (let k = 0; k < pos.count; k++){
+          v.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld); lp.push(v.x, v.y, v.z); lc.push(col.r, col.g, col.b);
+        }
+        n.grp.remove(o); o.geometry.dispose();
+      }
+    });
+  });
+  inst.forEach((e, geo) => {
+    const mesh = new T.InstancedMesh(geo, matCell, e.mats.length);
+    e.mats.forEach((mm, i) => { mesh.setMatrixAt(i, mm); mesh.setColorAt(i, e.cols[i]); });
+    mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; mesh.frustumCulled = false;
+    world.add(mesh);
+  });
+  if (lp.length){
+    const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(lp, 3));
+    geo.setAttribute("color", new T.Float32BufferAttribute(lc, 3));
+    const l = new T.LineSegments(geo, new T.LineBasicMaterial({vertexColors: true}));
+    l.frustumCulled = false; world.add(l);
+  }
+}
+
+function buildAnalysis(){
+  visSpine = [];
+  const an = G.analysis;
+  if (!an) return;
+  const rep_ = G.rep, vis = [];
+  an.spine.forEach(nm => { const v = nodeBy[rep_[nm]]; if (v && vis[vis.length - 1] !== v) vis.push(v); });
+  if (vis.length < 2) return;
+  visSpine = vis;
+  const cen = v => Wp(v, new T.Vector3(v.b.ox + v.b.sx/2, v.b.oy + v.b.sy/2, v.b.oz + v.b.sz/2));
+  const P = vis.map(cen), logs = vis.map(v => Math.log10(Math.max(1, v.numel)));
+  const lo = Math.min(...logs), hi = Math.max(...logs);
+  const R = logs.map(l => 1.6 + 5.2*(l - lo)/(hi - lo + 1e-9));
+  const tang = i => { const a = P[Math.max(0, i-1)], b = P[Math.min(P.length-1, i+1)]; return b.clone().sub(a).normalize(); };
+  const dists = []; for (let i = 0; i < P.length-1; i++) dists.push(P[i].distanceTo(P[i+1]));
+  const med = dists.slice().sort((a, b) => a - b)[dists.length >> 1] || 1, maxJump = 2.6*med + 12;
+
+  if ($("showenv").checked){
+    const SEG = 24, pos = [], idxs = [], wire = [];
+    P.forEach((p, i) => {
+      const t = tang(i), up = Math.abs(t.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
+      const u = new T.Vector3().crossVectors(t, up).normalize(), w = new T.Vector3().crossVectors(t, u).normalize();
+      for (let k = 0; k < SEG; k++){
+        const th = k/SEG*Math.PI*2, q = p.clone().addScaledVector(u, Math.cos(th)*R[i]).addScaledVector(w, Math.sin(th)*R[i]);
+        pos.push(q.x, q.y, q.z);
+      }
+    });
+    for (let i = 0; i < P.length - 1; i++){
+      if (dists[i] > maxJump) continue;
+      for (let k = 0; k < SEG; k++){
+        const a = i*SEG + k, b = i*SEG + (k+1) % SEG, c = (i+1)*SEG + k, d = (i+1)*SEG + (k+1) % SEG;
+        idxs.push(a, b, c, b, d, c);
+      }
+    }
+    for (let i = 0; i < P.length; i++) for (let k = 0; k < SEG; k++){
+      const a = (i*SEG + k)*3, b = (i*SEG + (k+1) % SEG)*3;
+      wire.push(pos[a], pos[a+1], pos[a+2], pos[b], pos[b+1], pos[b+2]);
+    }
+    const g1 = new T.BufferGeometry();
+    g1.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g1.setIndex(idxs);
+    world.add(new T.Mesh(g1, new T.MeshBasicMaterial({color: 0x6aa6ff, transparent: true, opacity: 0.07, side: T.DoubleSide, depthWrite: false})));
+    const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(wire, 3));
+    world.add(new T.LineSegments(g2, new T.LineBasicMaterial({color: 0x6aa6ff, transparent: true, opacity: 0.22})));
+  }
+
+  const bn = an.bottleneck && nodeBy[rep_[an.bottleneck]];
+  if (bn){
+    const i = vis.indexOf(bn);
+    if (i >= 0){
+      const ring = new T.Mesh(new T.TorusGeometry(R[i] + 0.7, 0.14, 12, 56), new T.MeshBasicMaterial({color: 0xffd54f}));
+      ring.position.copy(P[i]); ring.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), tang(i));
+      world.add(ring);
+    }
+    const ratio = an.compression != null ? (an.compression >= 1 ? `${an.compression.toFixed(1)}× the input` : `${(1/an.compression).toFixed(1)}× smaller than the input`) : "";
+    addLabel(bn, "◆ bottleneck (deepest level)", new T.Vector3(bn.b.ox + bn.b.sx/2, bn.b.oy + bn.b.sy + 2.4, bn.b.oz + bn.b.sz/2), "#ffd54f",
+             `${bn.tshape.join("×")} = ${bn.numel.toLocaleString()} values · ${ratio}` + (an.spatial_ratio > 1.5 ? ` · ${Math.round(an.spatial_ratio)}× smaller spatially` : "") + (an.stochastic ? " · stochastic latent z = μ + σ·ε" : "") +
+             (an.bypass.count ? ` · ${an.bypass.count} skip links (${an.bypass.channels} ch) bypass it` : ""), false, bn);
+  }
+  const used = new Set();
+  (an.stages || []).forEach(st => {
+    const v = st.nodes.map(nm => nodeBy[rep_[nm]]).find(x => x);
+    if (!v || used.has(v.name) || st.name === "bottleneck") return;
+    used.add(v.name);
+    const col = st.name === "bottleneck" ? "#ffd54f" : st.name.startsWith("E") ? "#90caf9" : st.name.startsWith("D") ? "#a5d6a7" : "#b0bec5";
+    addLabel(v, st.name + (st.hw ? ` · ${st.hw.join("×")}` : ""), new T.Vector3(v.b.ox + v.b.sx/2, v.b.oy + v.b.sy + 3.2, v.b.oz + v.b.sz/2), col, "", true, v);
+  });
+  (an.pairs || []).forEach(([e1, d1]) => {
+    const a = nodeBy[rep_[e1]], b = nodeBy[rep_[d1]];
+    if (!a || !b || a === b) return;
+    const geo = new T.BufferGeometry().setFromPoints([cen(a), cen(b)]);
+    const l = new T.Line(geo, new T.LineDashedMaterial({color: 0x90caf9, transparent: true, opacity: 0.25, dashSize: 1.2, gapSize: 1.2}));
+    l.computeLineDistances(); world.add(l);
+  });
+}
+
+// a coloured floor under every layer of an expanded block, so membership stays visible when unfolded
+function buildBlockFloors(){
+  if (!$("showfloor").checked) return;
+  const pad = (n, floorY, col) => {
+    const len = (n.colExt || n.b.sx) + 4, wid = n.b.sz + 3, plane = new T.PlaneGeometry(len, wid);
+    const mesh = new T.Mesh(plane, new T.MeshBasicMaterial({color: col, transparent: true, opacity: 0.16, side: T.DoubleSide, depthWrite: false}));
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.set(n.colCx ?? (n.b.ox + n.b.sx/2), floorY, n.b.oz + n.b.sz/2);
+    n.grp.add(mesh);
+    const edge = new T.LineSegments(new T.EdgesGeometry(plane), new T.LineBasicMaterial({color: col, transparent: true, opacity: 0.55}));
+    edge.rotation.x = -Math.PI/2; edge.position.copy(mesh.position);
+    n.grp.add(edge);
+  };
+  const blocks = new Map();
+  G.nodes.forEach(n => { if (n.block && n.kind !== "group") (blocks.get(n.block) || blocks.set(n.block, []).get(n.block)).push(n); });
+  blocks.forEach((ms, id) => {
+    if (ms.length < 2) return;
+    const col = new T.Color(G.blockColors[id] || FLOORCOL[0]);
+    const floorY = Math.min(...ms.map(n => n.b.oy)) - 0.8;
+    ms.forEach(n => pad(n, floorY, col));
+    const first = ms[0];
+    addLabel(first, `${id} · ${ms.length} layers`, new T.Vector3(first.colCx ?? first.b.ox, floorY + 0.4, first.b.oz + first.b.sz + 1.2),
+             "#" + col.getHexString(), "", true, first);
+  });
+  G.nodes.forEach(n => {                       // a collapsed block keeps the colour of its expanded floor
+    if (n.kind !== "group") return;
+    pad(n, n.b.oy - 0.8, new T.Color(G.blockColors[n.name] || FLOORCOL[0]));
+  });
+}
+
+function renderProfile(){
+  const cv_ = $("profile"), c = cv_.getContext("2d"), W_ = cv_.width, H_ = cv_.height;
+  c.clearRect(0, 0, W_, H_);
+  const vs = visSpine;
+  cv_.style.display = vs.length < 3 ? "none" : "block";
+  if (vs.length < 3) return;
+  const ls = vs.map(v => Math.log10(Math.max(1, v.numel))), lo = Math.min(...ls) - 0.1, hi = Math.max(...ls) + 0.1;
+  const X = i => 8 + (W_ - 16) * i/(vs.length - 1), Y = l => H_ - 14 - (H_ - 26) * (l - lo)/(hi - lo);
+  c.fillStyle = "rgba(92,220,255,0.12)"; c.strokeStyle = "#5cdcff"; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(X(0), H_ - 14);
+  vs.forEach((v, i) => c.lineTo(X(i), Y(ls[i])));
+  c.lineTo(X(vs.length - 1), H_ - 14); c.closePath(); c.fill();
+  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.stroke();
+  const an = G.analysis, bn = an && an.bottleneck && G.rep[an.bottleneck];
+  const bi = vs.findIndex(v => v.name === bn);
+  if (bi >= 0){
+    c.strokeStyle = "#ffd54f"; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(bi), 4); c.lineTo(X(bi), H_ - 12); c.stroke(); c.setLineDash([]);
+    c.fillStyle = "#ffd54f"; c.beginPath(); c.arc(X(bi), Y(ls[bi]), 4, 0, 7); c.fill();
+  }
+  c.fillStyle = "#8a8a96"; c.font = "10px system-ui";
+  c.fillText("tensor size along the main path (log)", 8, H_ - 2);
+  c.textAlign = "right"; c.fillText(`${Math.round(10**lo).toLocaleString()} → ${Math.round(10**hi).toLocaleString()} values`, W_ - 8, H_ - 2); c.textAlign = "left";
+}
+
+function rebuild(){
+  computeMetricRange();
+  scene.remove(world); world = new T.Group(); scene.add(world);
+  sweeps = []; pickers = [];
+  labels.forEach(l => l.d.remove()); labels = [];
+  const showAct = document.getElementById("showact").checked && !!A;
+  G.nodes.forEach(n => { n.grp = new T.Group(); applyPose(n); world.add(n.grp); });
+  world.updateMatrixWorld(true);
+  G.nodes.forEach(n => buildNode(n, A && A.acts, showAct));
+  if (!folding){
+    buildEdges(document.getElementById("showw").checked);
+    mergeStatic();
+    buildBlockFloors();
+    buildAnalysis();
+    renderProfile();
+  }
+  refreshSweeps();
+  if (sel) labels.forEach(l => l.d.classList.toggle("sel", l.node === sel));
+}
+
+function fit(apply){
+  world.updateMatrixWorld(true);
+  const box = new T.Box3();
+  pickers.forEach(p => box.union(new T.Box3().setFromObject(p)));   // instanced cells don't report per-instance bounds
+  const size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+  const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  const mode = document.getElementById("layout").value;
+  const dir = (mode === "line" ? new T.Vector3(0, 0.3, 1) : new T.Vector3(0.0, 0.85, 0.55)).normalize();
+  const dx = (size.x/2)/Math.tan(hf/2), dz = (Math.max(size.y, mode === "line" ? 0 : size.z*0.8)/2)/Math.tan(vf/2);
+  const dist = Math.max(dx, dz)*1.05 + size.z/2;
+  const E = size.length();
+  controls.rotateSpeed = clamp(Math.sqrt(100/E), 0.15, 1);      // big models: small mouse moves must not swing the scene
+  controls.panSpeed = clamp(Math.sqrt(100/E), 0.3, 1) * 1.5;
+  controls.zoomSpeed = 1.2;
+  controls.minDistance = 1.5; controls.maxDistance = E*2.5;
+  camera.far = Math.max(2000, E*4); camera.near = Math.max(0.1, E/4000); camera.updateProjectionMatrix();
+  const res = {pos: c.clone().addScaledVector(dir, dist), target: c.clone(), dist};
+  if (apply === false) return res;                 // only compute the framing (used by fold animation)
+  controls.target.copy(c);
+  camera.position.copy(res.pos);
+  camera.lookAt(c); controls.update(); needsRender = true;
+  return res;
+}
+
+// move the orbit pivot to a layer (and optionally approach it) so rotation happens around what you look at
+let fly = null;
+function flyTo(n, approach){
+  const b = n.b, c = Wp(n, new T.Vector3(b.ox + b.sx/2, b.oy + b.sy/2, b.oz + b.sz/2));
+  const off = camera.position.clone().sub(controls.target);
+  if (approach) off.setLength(Math.max(b.sx, b.sy, b.sz)*1.8 + 6);
+  fly = {t: c, p: c.clone().add(off)};
+}
+
+// ---------- picking ----------
+const ray = new T.Raycaster(), mouse = new T.Vector2();
+let down = null;
+renderer.domElement.addEventListener("pointerdown", e => down = {x:e.clientX, y:e.clientY});
+function pickAt(x, y){
+  mouse.set(x/innerWidth*2-1, -(y/innerHeight)*2+1);
+  ray.setFromCamera(mouse, camera);
+  const h = ray.intersectObjects(pickers)[0];
+  return h ? h.object.userData.node : null;
+}
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!down || Math.abs(e.clientX-down.x) + Math.abs(e.clientY-down.y) > 4) return;
+  sel = pickAt(e.clientX, e.clientY);
+  labels.forEach(l => l.d.classList.toggle("sel", l.node === sel && !!sel));
+  if (sel) flyTo(sel, false);
+  refreshSweeps(); showPanel();
+});
+renderer.domElement.addEventListener("dblclick", e => {
+  const n = pickAt(e.clientX, e.clientY);
+  if (!n) return;
+  if (n.kind === "group") transition(() => expanded.add(n.name)); else flyTo(n, true);
+});
+document.getElementById("profile").addEventListener("click", e => {
+  const r = document.getElementById("profile").getBoundingClientRect();
+  const i = Math.round((e.clientX - r.left - 8*r.width/640) / ((r.width - 16*r.width/640)) * (visSpine.length - 1));
+  const v = visSpine[clamp(i, 0, visSpine.length - 1)];
+  if (v){ sel = v; flyTo(v, true); refreshSweeps(); showPanel(); }
+});
+addEventListener("keydown", e => { if (e.key === "f" || e.key === "F") fit(); });
+
+// ---------- panel ----------
+function heat(canvas, M, cell){
+  const R = M.length, C = M[0].length; canvas.width = C*cell; canvas.height = R*cell;
+  const c = canvas.getContext("2d"), mx = Math.max(1e-9, ...M.flat().map(Math.abs));
+  for (let i = 0; i < R; i++) for (let j = 0; j < C; j++){ c.fillStyle = cssDiv(M[i][j]/mx); c.fillRect(j*cell, i*cell, cell, cell); }
+}
+function showPanel(){
+  const p = document.getElementById("panel");
+  if (!sel){ p.style.display = "none"; return; }
+  const n = sel, k = KIND[n.kind];
+  const rows = [["kind", k.label], ["class", n.label], ["output shape", `[${n.shape.join(", ")}]`],
+                ["neurons (units)", n.units], ["activation size", n.numel.toLocaleString() + " values"],
+                ["FLOPs (approx.)", fmtParams(n.flops).replace(" ", "") + "FLOP"],
+                ...(n.sampled ? [["shown (sampled)", "[" + n.dshape.join("×") + "]"]] : []), ["parameters", n.params.toLocaleString()],
+                ...Object.entries(n.attrs).map(([a,v]) => [a, Array.isArray(v) ? v.join("×") : v])];
+  p.innerHTML = `<h2 style="color:${k.color}">${n.name}</h2><div class="k">${n.label}</div>${describeLayer(n)}
+    <table>${rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table><div id="extras"></div>`;
+  p.style.display = "block";
+  const ex = document.getElementById("extras");
+  const add = (title, fn) => { const h = document.createElement("div"); h.className = "k"; h.style.margin = "10px 0 4px"; h.textContent = title; ex.appendChild(h); fn(); };
+  const w = n.weights;
+  if (w && w.qkv){ /* attention: projections listed below */ }
+  else if (w && n.kind === "conv"){
+    add(`kernels [out=${w.shape[0]}, in=${w.shape[1]}, ${w.shape[2]}×${w.shape[3]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => {
+      w.data.forEach(row => { const d = document.createElement("div");
+        row.forEach(kn => { const c = document.createElement("canvas"); heat(c, kn, 8); d.appendChild(c); }); ex.appendChild(d); }); });
+  } else if (w){
+    add(`weight matrix [out=${w.shape[0]}, in=${w.shape[1]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => { const c = document.createElement("canvas");
+      heat(c, w.data, Math.max(3, Math.min(14, 280/Math.max(w.data.length, w.data[0].length)))); ex.appendChild(c); });
+  }
+  if (w && w.qkv){
+    const D = w.o.length;
+    [["W_q", w.qkv.slice(0, D)], ["W_k", w.qkv.slice(D, 2*D)], ["W_v", w.qkv.slice(2*D)], ["W_o", w.o]].forEach(([nm, M]) =>
+      add(`${nm} [out, in]`, () => { const c = document.createElement("canvas"); heat(c, M, 14); ex.appendChild(c); }));
+  }
+  if (n.kind === "group"){
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = "expand this block";
+    btn.onclick = () => transition(() => expanded.add(n.name)); ex.appendChild(btn);
+    add("layers inside", () => { const d = document.createElement("div"); d.className = "k";
+      d.textContent = Object.entries(n.memberKinds).map(([k2, v]) => `${v}× ${k2}`).join(" · "); ex.appendChild(d); });
+  } else if (n.block){
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = `collapse block "${n.block}"`;
+    btn.onclick = () => transition(() => expanded.delete(n.block)); ex.appendChild(btn);
+  }
+  const a = A && A.acts[n.actKey || n.name];
+  if (a && a.stats) add("statistics for the current input", () => { const d = document.createElement("div");
+    d.innerHTML = `sparsity ${(a.stats.sparsity*100).toFixed(1)} % · mean |a| ${a.stats.mean_abs.toPrecision(3)} · std ${a.stats.std.toPrecision(3)}` +
+      (a.delta != null ? `<br>residual change ‖F(x)‖/‖x‖ = ${a.delta.toPrecision(3)}` : ""); ex.appendChild(d); });
+  if (a && a.gates) add("router gates (rows = tokens, cols = experts)", () => { const c = document.createElement("canvas"); heat(c, a.gates, 10); ex.appendChild(c); });
+  if (a && a.attn) add("attention maps (rows = query, cols = key)", () => a.attn.forEach(m => { const c = document.createElement("canvas"); heat(c, m, 10); ex.appendChild(c); }));
+  if (a && n.kind !== "input") add("mean activation per unit", () => { const c = document.createElement("canvas"); heat(c, [a.units], 12); ex.appendChild(c); });
+}
+
+// ---------- loop ----------
+const v3 = new T.Vector3();
+function animate(t){
+  requestAnimationFrame(animate);
+  if (fly){
+    controls.target.lerp(fly.t, 0.18); camera.position.lerp(fly.p, 0.18);
+    if (controls.target.distanceTo(fly.t) < 0.05 && camera.position.distanceTo(fly.p) < 0.05) fly = null;
+    needsRender = true;
+  }
+  controls.update();
+  stepFold();
+  const animating = sweeps.length > 0 && $("showk").checked;
+  if (!needsRender && !animating) return;           // idle: no GPU work at all
+  needsRender = false;
+  updateSweeps(t/1000, $("showk").checked);
+  renderer.render(scene, camera);
+  labels.forEach(l => {
+    v3.copy(l.pos).project(camera);
+    const vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || camera.position.distanceTo(l.pos) < 70);
+    l.d.style.display = vis ? "block" : "none";
+    if (vis){ l.d.style.left = (v3.x*0.5+0.5)*innerWidth + "px"; l.d.style.top = (-v3.y*0.5+0.5)*innerHeight + "px"; }
+  });
+}
+
+// ---------- data ----------
+const $ = id => document.getElementById(id);
+function setStatus(msg, bad){ const el = $("status"); el.textContent = msg; el.title = msg; el.style.color = bad ? "#ff6e6e" : ""; }
+function syncSeg(){ document.querySelectorAll("#layoutseg button").forEach(b => b.classList.toggle("on", b.dataset.v === $("layout").value)); }
+function renderLegend(){
+  const present = new Set(G.nodes.map(n => n.kind));
+  const items = Object.entries(KIND).filter(([k]) => present.has(k) && k !== "input" && k !== "output");
+  const el = $("legend"), closed = el.classList.contains("closed");
+  el.innerHTML = `<div class="lh" id="lh"><span>Layer types in this model</span><b>${closed ? "▸" : "▾"}</b></div><div class="items">` +
+    items.map(([k, v]) => `<div class="it" title="${v.desc}"><i class="sw" style="background:${v.color}"></i><span class="nm">${v.label}</span><span class="ds">${v.desc}</span></div>`).join("") +
+    `</div><div class="foot"><span><b style="color:#5cdcff">■</b> positive / <b style="color:#ff4fa3">■</b> negative activation</span>` +
+    `<span><b style="color:#fff">─</b> / <b style="color:#ff4fa3">─</b> weight sign</span>` +
+    `<span title="white: x + F(x) on the main path · lavender: a side branch added or reused later (e.g. timestep embedding) · teal: concatenated skip · gold: concatenated skip that jumps over the bottleneck">` +
+    `<b style="color:#fff">━</b> residual add · <b style="color:#b39ddb">━</b> side branch · <b style="color:#4dd0e1">━</b> concat skip · <b style="color:#ffd54f">━</b> bypasses bottleneck</span>` +
+    (metricRange ? `<div class="mbar"><span>${$("metric").selectedOptions[0].text}: ${fmtMetric(metricRange.raw[0])}</span><i></i><span>${fmtMetric(metricRange.raw[1])}</span></div>` : "") +
+    `<span>click a layer · double-click a block to expand</span></div>`;
+  $("lh").onclick = () => { el.classList.toggle("closed"); renderLegend(); fitLeft(); };
+  fitLeft();
+}
+const fmtMetric = v => v >= 1000 ? fmtParams(Math.round(v)).replace(' ', '') : (v < 0.01 && v > 0 ? v.toExponential(1) : (+v.toPrecision(3)).toString());
+function fitLeft(){ document.documentElement.style.setProperty("--legend-h", ($("legend").offsetHeight || 190) + "px"); }
+
+async function loadActs(){
+  const extra = Object.entries(paramVals).map(([k, v]) => `&p_${k}=${v}`).join("");
+  const r = await fetch(`/api/activations?cls=${$("cls").value}&seed=${seed}${extra}`);
+  A = await r.json();
+  if (A.error){ setStatus(A.error, true); A = null; return; }
+  let txt = "";
+  if (A.pred != null){
+    const nm = G.classes.length === A.n_out ? G.classes[A.pred] : `class #${A.pred}`;
+    txt = `→ ${nm} (${(A.prob*100).toFixed(0)}%)`;
+  }
+  $("pred").textContent = txt;
+  renderGallery(A.images || []);
+  rebuild(); renderLegend(); showPanel();
+}
+
+function setCard(on){
+  $("cardtoggle").checked = on;
+  $("card").style.display = on ? "block" : "none";
+  try { localStorage.setItem("nnviz.card", on ? "1" : "0"); } catch (e) {}
+}
+function renderGallery(imgs){
+  const el = $("gallery"); el.innerHTML = "";
+  imgs.forEach(im => {
+    const f = document.createElement("figure"), c = document.createElement("canvas");
+    c.width = im.w; c.height = im.h;
+    const ctx2 = c.getContext("2d"), id = ctx2.createImageData(im.w, im.h);
+    for (let p = 0; p < im.w*im.h; p++){
+      const g = im.c === 3 ? [im.data[p*3], im.data[p*3+1], im.data[p*3+2]] : [im.data[p], im.data[p], im.data[p]];
+      id.data[p*4] = g[0]; id.data[p*4+1] = g[1]; id.data[p*4+2] = g[2]; id.data[p*4+3] = 255;
+    }
+    ctx2.putImageData(id, 0, 0);
+    const cap = document.createElement("figcaption"); cap.textContent = im.name;
+    f.appendChild(c); f.appendChild(cap); el.appendChild(f);
+  });
+}
+let ctrlTimer = null;
+function renderControls(){
+  const el = $("ctrls"); el.innerHTML = ""; paramVals = {};
+  (G0.controls || []).forEach(c => {
+    paramVals[c.id] = c.default;
+    const w = document.createElement("div");
+    w.innerHTML = `<div class="ct">${c.label}<span>${c.default}</span></div><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.default}">`;
+    const inp = w.querySelector("input"), val = w.querySelector("span");
+    inp.oninput = () => { paramVals[c.id] = +inp.value; val.textContent = inp.value;
+      clearTimeout(ctrlTimer); ctrlTimer = setTimeout(loadActs, 120); };
+    el.appendChild(w);
+  });
+}
+function renderArch(){
+  const an = G0.analysis, el = $("arch");
+  if (!an){ el.textContent = ""; return; }
+  const bn = an.bottleneck ? G0.nodes.find(n => n.name === an.bottleneck) : null;
+  el.innerHTML = {
+    hourglass: `<b>◆ hourglass</b> (encoder → bottleneck → decoder)` + (bn ? ` · deepest level <b>${bn.tshape.join("×")}</b> = ${bn.numel.toLocaleString()} values` : "") +
+               (an.spatial_ratio > 1.5 ? ` · ${Math.round(an.spatial_ratio)}× smaller spatially` : "") + (an.stochastic ? " · stochastic latent" : "") + (an.bypass.count ? ` · ${an.bypass.count} skip links bypass it` : ""),
+    funnel: "▽ funnel: information is progressively compressed (classifier-like)",
+    expansion: "△ expansion: a small code is progressively expanded (generator-like)",
+    flat: "▭ roughly constant width (Transformer-like: the stream keeps its size)",
+  }[an.kind] || "";
+}
+async function loadGraph(){
+  G0 = await (await fetch("/api/graph")).json();
+  G0.nodes.forEach(n => n.path = n.path || "");
+  sel = null; A = null; expanded.clear();
+  $("grpblocks").checked = G0.nodes.length > 60;
+  const cs = $("cls"); cs.innerHTML = "";
+  G0.classes.slice(0, 12).forEach((c,i) => cs.add(new Option(c, i)));
+  renderControls(); renderArch();
+  rebuildAll(false);
+  setStatus(`${G.name} · ${fmtParams(G.params)} params · ${G0.nodes.length} nodes · traced via ${G.tracer} · ` +
+            `loaded in ${G.load_s}s · * = display is sampled (≤24 channels/features, ≤12×12 cells, ≤4 heads)`);
+  $("model").value = G.model;
+  renderLegend(); syncSeg();
+  renderCard(); renderTitle();
+  setCard($("cardtoggle").checked);
+  await loadActs();
+}
+
+const DISPLAY_NAMES = {
+  "toy-mixed": "Toy mixed net", resnet18: "ResNet‑18", resnet50: "ResNet‑50", vgg16: "VGG‑16", alexnet: "AlexNet",
+  mobilenet_v3_small: "MobileNetV3‑Small", efficientnet_b0: "EfficientNet‑B0", densenet121: "DenseNet‑121",
+  vit_tiny_16: "ViT‑Tiny/16", vit_b_16: "ViT‑B/16", "gpt2-small": "GPT‑2 small", "gpt2-tiny": "GPT‑2 tiny",
+  "llama-style": "Llama‑style", "gpt-oss-style": "GPT‑OSS‑style", unet: "U‑Net", vae: "VAE",
+  "dcgan-generator": "DCGAN · Generator", "dcgan-discriminator": "DCGAN · Discriminator", "ddpm-unet": "DDPM U‑Net",
+};
+function renderTitle(){
+  const m = MODELS[G.model], info = m && m.info;
+  let name = DISPLAY_NAMES[G.model] || String(G.name || G.model).replace(/\.(py|pt|pth)$/, "");
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  // lighter weight for the part after "·" or "/" (variant / size)
+  const parts = esc(name).split(/( · |\/)/);
+  const html = parts.length > 1 ? `${parts[0]}<i>${parts.slice(1).join("")}</i>` : esc(name);
+  const sub = [m && m.group, info && info.year ? info.year.split("(")[0].trim() : null, `${fmtParams(G.params)} parameters`]
+    .filter(Boolean).join("  ·  ");
+  $("title").innerHTML = `<div class="nm">${html}</div><div class="sb">${esc(sub)}</div><div class="ln"></div>`;
+}
+
+function renderCard(){
+  const c = $("card"), m = MODELS[G.model], i = m && m.info;
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const list = (title, arr) => arr && arr.length ? `<h4>${title}</h4><ul>${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  if (!i){
+    c.innerHTML = `<span class="x" onclick="setCard(false)">✕</span><h3>${esc(G.name)}</h3>
+      <div class="sub">imported model</div><div class="tag">${fmtParams(G.params)} parameters · ${G.nodes.length} nodes · traced via ${esc(G.tracer)}</div>`;
+    return;
+  }
+  c.innerHTML = `<span class="x" onclick="setCard(false)">✕</span>
+    <h3>${esc(G.model)} <span style="color:#888;font-weight:400">· ${fmtParams(G.params)} params</span></h3>
+    <div class="sub">${esc(i.year)} · ${esc(i.org)}${i.paper && i.paper !== "—" ? `<br><i>${esc(i.paper)}</i>` : ""}</div>
+    <div class="tag">${esc(i.tagline)}</div>` +
+    list("Known for", i.known_for) + list("What it introduced", i.innovations) + list("Technical details", i.technical) +
+    list("What to look for in this view", i.look_for);
+}
+
+async function post(url, body){
+  const r = await fetch(url, {method: "POST", body});
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+async function busy(msg, fn){
+  document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = true);
+  setStatus(msg);
+  try { await fn(); } catch (e) { setStatus(String(e.message || e), true); }
+  finally { document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = false); updateBlockButtons(); }
+}
+
+function viewAlong(){
+  const n0 = G.nodes.find(n => n.kind === "input") || G.nodes[0], p = n0.pose;
+  const fwd = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw)), P = new T.Vector3(p.px, p.py, p.pz);
+  camera.position.copy(P).addScaledVector(fwd, -22).add(new T.Vector3(0, 7, 0));
+  controls.target.copy(P).addScaledVector(fwd, 40); controls.update();
+}
+
+(async function init(){
+  const ms = await (await fetch("/api/models")).json();
+  const sel_ = $("model"), groups = {};
+  ms.models.forEach(m => {
+    if (!groups[m.group]){ groups[m.group] = document.createElement("optgroup"); groups[m.group].label = m.group; sel_.appendChild(groups[m.group]); }
+    const o = new Option(`${m.id}  ·  ${fmtParams(m.params)}`, m.id); o.title = m.desc; groups[m.group].appendChild(o);
+    MODELS[m.id] = m;
+  });
+  const qp = new URLSearchParams(location.search);
+  try { if (localStorage.getItem("nnviz.card") === "0") $("cardtoggle").checked = false; } catch (e) {}
+  if (qp.get("layout")) $("layout").value = qp.get("layout");
+  if (qp.get("weights") === "0") $("showw").checked = false;
+  if (qp.get("labels") === "0") { $("showl").checked = false; $("labels").style.display = "none"; }
+  if (qp.get("model") && qp.get("model") !== ms.current && ms.models.some(m => m.id === qp.get("model")))
+    await busy(`loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`));
+  await loadGraph();
+  if (qp.get("focus") && nodeBy[qp.get("focus")]){   // look at one layer from above
+    const f = nodeBy[qp.get("focus")], c = Wp(f, new T.Vector3(f.b.ox + f.b.sx/2, 0, f.b.oz + f.b.sz/2));
+    controls.target.copy(c); camera.position.copy(c).add(new T.Vector3(-4, 17, 15)); controls.update();
+  }
+  if (qp.get("collapse") === "0"){ $("grpblocks").checked = false; expanded.clear(); rebuildAll(false); }
+  if (qp.get("fold") === "collapse") setTimeout(() => $("collapseall").click(), 800);   // test hook: run the fold animation
+  if (qp.get("fold") === "expand") setTimeout(() => $("expandall").click(), 800);
+  if (qp.get("along")) viewAlong();
+  if (qp.get("select") && nodeBy[qp.get("select")]){ sel = nodeBy[qp.get("select")]; showPanel(); refreshSweeps(); }
+  if (qp.get("card") === "0") setCard(false);
+  if (qp.get("cam")){   // x,y,z,tx,ty,tz in world units
+    const v = qp.get("cam").split(",").map(Number);
+    camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update();
+  }
+  sel_.onchange = () => busy(`loading ${sel_.value}…`, async () => {
+    await post(`/api/load?model=${encodeURIComponent(sel_.value)}&pretrained=${$("pre").checked ? 1 : 0}`);
+    await loadGraph();
+  });
+  $("pre").onchange = () => { if ($("pre").checked) setStatus("pretrained weights are downloaded on load (torchvision CNN/ViT only); re-select the model to apply"); };
+  $("upbtn").onclick = () => $("file").click();
+  $("file").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    busy(`importing ${f.name}…`, async () => {
+      const j = await post(`/api/upload?name=${encodeURIComponent(f.name)}&input=${encodeURIComponent($("inshape").value.trim())}`, f);
+      if (![...sel_.options].some(o => o.value === j.model)){ const o = new Option(j.model, j.model); sel_.add(o); }
+      await loadGraph();
+    });
+    e.target.value = "";
+  };
+  $("layout").onchange = e => { arrange(e.target.value); rebuild(); fit(); syncSeg(); };
+  $("metric").onchange = () => { rebuild(); renderLegend(); };
+  $("showenv").onchange = () => rebuild();
+  $("showfloor").onchange = () => rebuild();
+  $("grpblocks").onchange = () => transition(() => expanded.clear(), true);
+  $("collapseall").onclick = () => transition(() => { $("grpblocks").checked = true; expanded.clear(); }, true);
+  $("expandall").onclick = () => transition(() => { $("grpblocks").checked = false; expanded.clear(); }, true);
+  document.querySelectorAll("#layoutseg button").forEach(b => b.onclick = () => {
+    $("layout").value = b.dataset.v; $("layout").dispatchEvent(new Event("change")); });
+  $("collapse").onclick = () => { const c = $("ctl").classList.toggle("closed"); $("collapse").textContent = c ? "▸" : "▾"; };
+  addEventListener("resize", fitLeft);
+  $("showl").onchange = e => { $("labels").style.display = e.target.checked ? "" : "none"; };
+  $("cls").onchange = loadActs;
+  $("resample").onclick = () => { seed++; loadActs(); };
+  $("showact").onchange = rebuild;
+  $("easy").onchange = () => { renderer.setPixelRatio($("easy").checked ? 1 : Math.min(devicePixelRatio || 1, 2));
+                               renderer.setSize(innerWidth, innerHeight); rebuild(); };
+  $("showk").onchange = () => { needsRender = true; };
+  $("showw").onchange = rebuild;
+  $("fit").onclick = fit;
+  $("cardtoggle").onchange = () => setCard($("cardtoggle").checked);
+  addEventListener("keydown", e => { if ((e.key === "i" || e.key === "I") && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) setCard(!$("cardtoggle").checked); });
+  $("along").onclick = viewAlong;
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

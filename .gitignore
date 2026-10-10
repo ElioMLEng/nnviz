@@ -1,0 +1,13 @@
+# environment / caches
+.venv/
+__pycache__/
+*.pyc
+
+# files imported through the UI (arbitrary user models)
+uploads/
+
+# scratch and debugging helpers
+dbg_*.py
+
+# superseded first prototype (2D view); not compatible with the current API
+static/2d.html
