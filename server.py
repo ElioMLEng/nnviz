@@ -106,8 +106,12 @@ def load_upload(path, input_spec):
         if isinstance(model, dict):
             raise ValueError("this file is a state_dict (weights only, no architecture). "
                              "Upload a .py defining build() instead, or torch.save(model) the whole module.")
+        if isinstance(model, torch.jit.ScriptModule):
+            raise ValueError("TorchScript archives (torch.jit.save / torch.jit.trace) are not supported: their layers run "
+                             "inside the TorchScript interpreter, so they cannot be traced layer by layer. Import the "
+                             "original model instead: a .py defining build(), or torch.save(model) of the nn.Module.")
     else:
-        raise ValueError("supported: .py (build()), .pt/.pth (whole pickled module or TorchScript)")
+        raise ValueError("supported: .py (defining build()) or .pt/.pth (a whole torch.save(model) pickled nn.Module)")
     if make_input is None:
         if not input_spec:
             raise ValueError("input shape required, e.g. 1,3,224,224 or int:1,32:50257")

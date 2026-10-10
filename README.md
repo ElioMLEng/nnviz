@@ -88,6 +88,66 @@ docker run --rm -p 127.0.0.1:8765:8765 -e NNVIZ_MODEL=resnet50 -e NNVIZ_ALLOW_UP
 | Large models are slow or crash | GPT-2 / ViT-B need a few GB of RAM; try a smaller model such as `resnet18`. |
 | "pretrained" fails | Weights are downloaded on demand, so the container needs internet access. |
 
+## Importing your own model
+Click **import…** in the *Model* panel and choose a file. Two kinds of file are accepted.
+
+### 1. A Python file defining `build()` (recommended)
+```python
+# my_model.py
+import torch, torch.nn as nn
+
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(3, 8, 3, padding=1)
+        self.fc = nn.Linear(8, 10)
+    def forward(self, x):
+        return self.fc(self.conv(x).mean((2, 3)))
+
+def build():                       # required: return an nn.Module
+    return Net().eval()
+
+def example_input():               # optional but recommended: one tensor, batch size 1
+    return torch.randn(1, 3, 32, 32)
+
+CLASSES = ["example", "noise"]     # optional: labels for the input selector
+```
+- `build()` is required. If it is missing, the file's single `nn.Module` subclass is used, provided it can be
+  constructed with no arguments.
+- `example_input()` tells the tool what to feed the model. Without it, give an *input spec* under
+  **import options** (see below).
+- To use trained weights, load them inside `build()` (`model.load_state_dict(torch.load(...))`).
+- A working example is in `examples/my_model.py`.
+
+### 2. A whole saved model: `.pt` / `.pth`
+Created with `torch.save(model, "model.pt")` — the **entire module**, not just its weights.
+
+- The file does not say what to feed the model, so fill in **import options → input spec** before importing:
+  `1,3,224,224` for an image, or `int:1,32:50257` for 32 token ids with a vocabulary of 50 257.
+- A pickled module refers to its class by name and only loads if that class's code is importable where the tool runs.
+  Standard `torch.nn` / torchvision models work; your own classes usually do not (especially inside the Docker
+  container). For custom models use the `.py` route.
+
+### What is not supported
+| File | Why / what to do instead |
+|---|---|
+| `state_dict` only (`.pt`, `.pth`, `.safetensors`) | It has weights but no architecture. Write a `.py` with `build()` that creates the model and loads them. |
+| TorchScript (`torch.jit.save`, `torch.jit.trace` / `script`) | Layers run inside the TorchScript interpreter and cannot be traced layer by layer. Import the original model instead. |
+| ONNX, TensorFlow / Keras, JAX | PyTorch `nn.Module`s only. |
+| Hugging Face checkpoints | Same as a `state_dict`: define the model class in a `.py`. |
+
+### Good to know
+- **Batch size 1**: the model must accept a batch of 1 (`1,3,224,224`); that is what is displayed.
+- **One input tensor** works best. Several inputs are possible if `example_input()` returns a tuple (like the DDPM
+  U-Net), but the "random noise" input choice is not offered for those.
+- **Level of detail depends on tracing**: most models are traced with `torch.fx` (residual adds and tensor ops are
+  visible). Models with data-dependent control flow fall back to a simpler trace of the layer calls only; the status
+  line then says "hooks".
+- **Richer attention view** for `nn.MultiheadAttention`, or for your own class whose name ends in `Attention` and
+  exposes `qkv` and `o` linear layers plus `heads`.
+- **Security**: the file is executed by the tool. Only import code you trust. Import can be disabled with
+  `NNVIZ_ALLOW_UPLOAD=0`.
+
 ## How it works
 - `extract.py` traces the model with `torch.fx` (falling back to forward hooks), builds the graph, samples large tensors
   for display (≤24 channels/features, ≤12×12 cells, ≤4 attention heads — true shapes are always reported), and runs
