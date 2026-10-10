@@ -1,6 +1,8 @@
+import argparse
 import gc
 import importlib.util
 import json
+import os
 import re
 import sys
 import threading
@@ -19,8 +21,10 @@ from zoo import REGISTRY, param_count
 
 HERE = Path(__file__).parent
 ROOT = (HERE / "static").resolve()
-UPLOADS = HERE / "uploads"
-UPLOADS.mkdir(exist_ok=True)
+UPLOADS = Path(os.environ.get("NNVIZ_UPLOAD_DIR", HERE / "uploads"))
+ALLOW_UPLOAD = os.environ.get("NNVIZ_ALLOW_UPLOAD", "1") != "0"
+MAX_UPLOAD = int(os.environ.get("NNVIZ_MAX_UPLOAD_MB", 500)) * 1024 * 1024
+UPLOADS.mkdir(parents=True, exist_ok=True)
 lock = threading.Lock()
 STATE = {"net": None, "id": None, "name": None, "make_input": None, "classes": [], "load_s": 0.0,
          "controls": [], "extras": None}
@@ -142,7 +146,7 @@ class H(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         try:
             if u.path == "/api/models":
-                return self._json({"current": STATE["id"], "models": [
+                return self._json({"current": STATE["id"], "upload": ALLOW_UPLOAD, "models": [
                     {"id": k, "group": v["group"], "desc": v["desc"], "pretrained": v["pretrained"],
                      "params": param_count(k), "info": v.get("info")}
                     for k, v in REGISTRY.items()]})
@@ -184,8 +188,13 @@ class H(BaseHTTPRequestHandler):
                 if q["model"] not in REGISTRY: raise ValueError("unknown model")
                 load_registry(q["model"], q.get("pretrained") == "1")
             elif u.path == "/api/upload":
+                if not ALLOW_UPLOAD:
+                    raise PermissionError("model import is disabled on this server (NNVIZ_ALLOW_UPLOAD=0)")
                 name = re.sub(r"[^\w.\-]", "_", q.get("name", "model.py"))
-                data = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                size = int(self.headers.get("Content-Length", 0))
+                if size > MAX_UPLOAD:
+                    raise ValueError(f"file too large ({size} bytes, limit {MAX_UPLOAD})")
+                data = self.rfile.read(size)
                 p = UPLOADS / name
                 p.write_bytes(data)
                 load_upload(p, q.get("input", ""))
@@ -200,11 +209,34 @@ class H(BaseHTTPRequestHandler):
         pass
 
 
+def main():
+    ap = argparse.ArgumentParser(description="nnviz: interactive 3D neural network explorer")
+    ap.add_argument("port", nargs="?", type=int, default=int(os.environ.get("NNVIZ_PORT", 8765)))
+    ap.add_argument("model", nargs="?", default=os.environ.get("NNVIZ_MODEL", "toy-mixed"),
+                    help="model id to load first (see /api/models)")
+    ap.add_argument("--host", default=os.environ.get("NNVIZ_HOST", "127.0.0.1"),
+                    help="interface to bind; use 0.0.0.0 inside a container (publish the port to localhost only)")
+    ap.add_argument("--no-browser", action="store_true",
+                    default=os.environ.get("NNVIZ_OPEN_BROWSER", "1") == "0", help="do not open a browser tab")
+    a = ap.parse_args()
+    if a.model not in REGISTRY:
+        sys.exit(f"unknown model '{a.model}'. choices: {', '.join(REGISTRY)}")
+    load_registry(a.model, False)
+    loopback = a.host in ("127.0.0.1", "localhost", "::1")
+    shown = "127.0.0.1" if a.host in ("0.0.0.0", "::") else a.host
+    print(f"nnviz on http://{shown}:{a.port}  (bound to {a.host}, model: {a.model}, "
+          f"import {'enabled' if ALLOW_UPLOAD else 'disabled'})", flush=True)
+    if not loopback and ALLOW_UPLOAD:
+        print("WARNING: model import executes uploaded code. Only publish this port to localhost, "
+              "or set NNVIZ_ALLOW_UPLOAD=0.", flush=True)
+    srv = ThreadingHTTPServer((a.host, a.port), H)
+    if not a.no_browser and loopback:
+        threading.Timer(0.5, lambda: webbrowser.open(f"http://{shown}:{a.port}")).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-    first = sys.argv[2] if len(sys.argv) > 2 else "toy-mixed"
-    load_registry(first, False)
-    print(f"nnviz on http://127.0.0.1:{port}  (model: {first})")
-    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
-    threading.Timer(0.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
-    srv.serve_forever()
+    main()

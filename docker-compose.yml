@@ -1,0 +1,20 @@
+services:
+  nnviz:
+    build: .
+    image: nnviz:latest
+    ports:
+      # published to localhost only: importing a model executes its code inside the container
+      - "127.0.0.1:8765:8765"
+    environment:
+      NNVIZ_MODEL: toy-mixed        # first model to load; any id from the model list
+      NNVIZ_ALLOW_UPLOAD: "1"       # set to "0" to disable model import
+    volumes:
+      - nnviz-data:/data            # uploads + downloaded pretrained weights
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+volumes:
+  nnviz-data:

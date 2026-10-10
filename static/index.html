@@ -1317,7 +1317,8 @@ async function busy(msg, fn){
   document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = true);
   setStatus(msg);
   try { await fn(); } catch (e) { setStatus(String(e.message || e), true); }
-  finally { document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = false); updateBlockButtons(); }
+  finally { document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = false); updateBlockButtons();
+    if ($("upbtn").dataset.locked) $("upbtn").disabled = true; }
 }
 
 function viewAlong(){
@@ -1335,6 +1336,10 @@ function viewAlong(){
     const o = new Option(`${m.id}  ·  ${fmtParams(m.params)}`, m.id); o.title = m.desc; groups[m.group].appendChild(o);
     MODELS[m.id] = m;
   });
+  if (ms.upload === false){
+    $("upbtn").disabled = true; $("upbtn").title = "model import is disabled on this server";
+    $("upbtn").dataset.locked = "1";
+  }
   const qp = new URLSearchParams(location.search);
   try { if (localStorage.getItem("nnviz.card") === "0") $("cardtoggle").checked = false; } catch (e) {}
   if (qp.get("layout")) $("layout").value = qp.get("layout");

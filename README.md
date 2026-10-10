@@ -30,6 +30,35 @@ python server.py 8765         # optional 2nd argument: a model id, e.g. resnet18
 ```
 Open http://127.0.0.1:8765. three.js is vendored in `static/vendor/`, so no CDN is needed.
 
+Options (command line or environment variable):
+
+| Flag / argument | Environment variable | Default | Meaning |
+|---|---|---|---|
+| `PORT` (positional) | `NNVIZ_PORT` | `8765` | listening port |
+| `MODEL` (positional) | `NNVIZ_MODEL` | `toy-mixed` | model loaded first |
+| `--host` | `NNVIZ_HOST` | `127.0.0.1` | interface to bind |
+| `--no-browser` | `NNVIZ_OPEN_BROWSER=0` | open a tab | do not open a browser |
+| — | `NNVIZ_ALLOW_UPLOAD=0` | `1` | disable model import |
+| — | `NNVIZ_UPLOAD_DIR` | `./uploads` | where imported files are stored |
+| — | `NNVIZ_MAX_UPLOAD_MB` | `500` | upload size limit |
+
+## Docker (Linux)
+CPU-only image based on `python:3.12-slim`, running as an unprivileged user.
+
+```bash
+docker compose up --build            # then open http://127.0.0.1:8765
+# or, without compose:
+docker build -t nnviz .
+docker run --rm -p 127.0.0.1:8765:8765 -v nnviz-data:/data nnviz
+docker run --rm -p 127.0.0.1:8765:8765 -e NNVIZ_MODEL=resnet50 -e NNVIZ_ALLOW_UPLOAD=0 nnviz
+```
+
+- Publish the port to **localhost only** (`127.0.0.1:8765:8765`, as above). Inside the container the server binds
+  `0.0.0.0`; importing a model executes its code in the container, so do not expose the port to a network.
+- `/data` is a volume holding imported models (`/data/uploads`) and downloaded pretrained weights (`/data/torch`).
+- Pretrained weights are downloaded on demand (torchvision models); the container needs internet access for that.
+- GPU is not used. The image is CPU-only to stay small.
+
 ## How it works
 - `extract.py` traces the model with `torch.fx` (falling back to forward hooks), builds the graph, samples large tensors
   for display (≤24 channels/features, ≤12×12 cells, ≤4 attention heads — true shapes are always reported), and runs
