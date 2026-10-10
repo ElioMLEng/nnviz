@@ -501,13 +501,17 @@ function arrange(mode){
       row.forEach((c, i) => r % 2 === 0 ? pose(c, xs[i], 0, r*rowGap, 0) : pose(c, width - xs[i], 0, r*rowGap, Math.PI));
     }
   } else if (mode === "spiral"){
-    const turn = Math.max(...C.map(c => c.zext)) + 14, rise = 11, k = turn/(2*Math.PI);
-    const r0 = Math.max(10, G.totalLen/(2*Math.PI*1.8));
+    // The spiral's shape is fixed by the *fully expanded* model (reference length), and stations are placed by their
+    // fraction along the path. A collapsed block therefore lands exactly where its layers were: folding never reshapes it.
+    const Lref = (G0 && G0.refLen) || G.totalLen, Zref = (G0 && G0.refZext) || Math.max(...C.map(c => c.zext));
+    const sc = Lref / G.totalLen;
+    const turn = Zref + 14, rise = 11, k = turn/(2*Math.PI);
+    const r0 = Math.max(10, Lref/(2*Math.PI*1.8));
     let th = 0, arc = 0;
     // input on the outside, output at the centre: walk the spiral from the centre outward
     // placing the LAST station first, and flow along the reversed (inward) tangent
     [...C].reverse().forEach(c => {
-      const target = G.totalLen - 4 - c.cx;
+      const target = (G.totalLen - 4 - c.cx) * sc;
       while (arc < target){ const r = r0 + k*th; arc += Math.hypot(r, k)*0.002; th += 0.002; }
       const r = r0 + k*th, px = r*Math.cos(th), pz = r*Math.sin(th);
       const tx = -r*Math.sin(th) + k*Math.cos(th), tz = r*Math.cos(th) + k*Math.sin(th);
@@ -771,7 +775,8 @@ function buildEdges(showW){
     if (e.skip){
       const p0 = Wp(a, new T.Vector3(ga.ox + ga.sx/2, ga.oy + ga.sy + 0.3, ga.oz + ga.sz/2));
       const p2 = Wp(b, new T.Vector3(b.b.ox + b.b.sx/2, gb.oy + gb.sy + 0.3, gb.oz + gb.sz/2));
-      const mid = p0.clone().add(p2).multiplyScalar(0.5); mid.y += 6 + p0.distanceTo(p2)*0.12;
+      // long arcs (spiral / folded layouts) must visibly arch over the model instead of reading as straight chords
+      const mid = p0.clone().add(p2).multiplyScalar(0.5); mid.y += 6 + p0.distanceTo(p2)*0.28;
       // only concatenation skips are "bypassing" the bottleneck; adds fed from a side branch (e.g. the timestep
       // embedding) are conditioning, not information shortcuts
       const crosses = e.join === "cat" && bIdx != null && order[e.src] < bIdx && bIdx < order[e.dst];
@@ -875,25 +880,37 @@ function buildAnalysis(){
   const med = dists.slice().sort((a, b) => a - b)[dists.length >> 1] || 1, maxJump = 2.6*med + 12;
 
   if ($("showenv").checked){
-    const SEG = 24, pos = [], idxs = [], wire = [];
-    P.forEach((p, i) => {
-      const t = tang(i), up = Math.abs(t.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
+    // follow a smooth curve through the stations (a straight polyline cuts corners on a spiral / folded layout)
+    const SUB = P.length > 2 ? 8 : 1, SEG = 24, S = [], RS = [], segOf = [];
+    if (P.length > 2){
+      const curve = new T.CatmullRomCurve3(P, false, "centripetal");
+      const total = (P.length - 1)*SUB;
+      for (let j = 0; j <= total; j++){
+        S.push(curve.getPoint(j/total));
+        const f = j/SUB, i0 = Math.min(P.length - 2, Math.floor(f)), u = f - i0;
+        RS.push(lerp(R[i0], R[i0 + 1], u)); segOf.push(i0);
+      }
+    } else P.forEach((p, i) => { S.push(p); RS.push(R[i]); segOf.push(Math.min(i, P.length - 2)); });
+    const tangS = j => S[Math.min(S.length - 1, j + 1)].clone().sub(S[Math.max(0, j - 1)]).normalize();
+    const pos = [], idxs = [], wire = [];
+    S.forEach((p, j) => {
+      const t = tangS(j), up = Math.abs(t.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
       const u = new T.Vector3().crossVectors(t, up).normalize(), w = new T.Vector3().crossVectors(t, u).normalize();
       for (let k = 0; k < SEG; k++){
-        const th = k/SEG*Math.PI*2, q = p.clone().addScaledVector(u, Math.cos(th)*R[i]).addScaledVector(w, Math.sin(th)*R[i]);
+        const th = k/SEG*Math.PI*2, q = p.clone().addScaledVector(u, Math.cos(th)*RS[j]).addScaledVector(w, Math.sin(th)*RS[j]);
         pos.push(q.x, q.y, q.z);
       }
     });
-    for (let i = 0; i < P.length - 1; i++){
-      if (dists[i] > maxJump) continue;
+    for (let j = 0; j < S.length - 1; j++){
+      if (dists[segOf[j]] > maxJump) continue;
       for (let k = 0; k < SEG; k++){
-        const a = i*SEG + k, b = i*SEG + (k+1) % SEG, c = (i+1)*SEG + k, d = (i+1)*SEG + (k+1) % SEG;
-        idxs.push(a, b, c, b, d, c);
+        const a1 = j*SEG + k, b1 = j*SEG + (k+1) % SEG, c1 = (j+1)*SEG + k, d1 = (j+1)*SEG + (k+1) % SEG;
+        idxs.push(a1, b1, c1, b1, d1, c1);
       }
     }
-    for (let i = 0; i < P.length; i++) for (let k = 0; k < SEG; k++){
-      const a = (i*SEG + k)*3, b = (i*SEG + (k+1) % SEG)*3;
-      wire.push(pos[a], pos[a+1], pos[a+2], pos[b], pos[b+1], pos[b+2]);
+    for (let j = 0; j < S.length; j += (P.length > 2 ? SUB : 1)) for (let k = 0; k < SEG; k++){   // rings only at the stations
+      const a1 = (j*SEG + k)*3, b1 = (j*SEG + (k+1) % SEG)*3;
+      wire.push(pos[a1], pos[a1+1], pos[a1+2], pos[b1], pos[b1+1], pos[b1+2]);
     }
     const g1 = new T.BufferGeometry();
     g1.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g1.setIndex(idxs);
@@ -1236,6 +1253,14 @@ async function loadGraph(){
   const cs = $("cls"); cs.innerHTML = "";
   G0.classes.slice(0, 12).forEach((c,i) => cs.add(new Option(c, i)));
   renderControls(); renderArch();
+  {                                              // reference geometry: layout of the fully expanded model
+    const keep = $("grpblocks").checked;
+    $("grpblocks").checked = false;
+    G = makeView(); nodeBy = {}; inc = {};
+    layout();
+    G0.refLen = G.totalLen; G0.refZext = Math.max(...G.cols.map(c => c.zext));
+    $("grpblocks").checked = keep;
+  }
   rebuildAll(false);
   setStatus(`${G.name} · ${fmtParams(G.params)} params · ${G0.nodes.length} nodes · traced via ${G.tracer} · ` +
             `loaded in ${G.load_s}s · * = display is sampled (≤24 channels/features, ≤12×12 cells, ≤4 heads)`);
