@@ -11,6 +11,8 @@
   .lb{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;text-shadow:0 0 4px #000,0 0 4px #000}
   .lb b{font-size:13px}.lb span{display:block;font-size:11px;color:#888}
   .lb.sel b{text-decoration:underline}
+  .lb.rl{transform:translate(-100%,-50%);text-align:right}
+  .lb.rl span{display:inline;margin-left:8px}
   :root{--bg:#0b0b0fe6;--line:#23232b;--mut:#8a8a96;--fg:#e4e4ea;--acc:#5cdcff;--ctl:#16161d}
   #left{position:fixed;left:12px;top:12px;width:372px;display:flex;flex-direction:column;gap:8px;
         max-height:calc(100vh - 24px - var(--legend-h, 190px) - 8px);pointer-events:none}
@@ -146,6 +148,7 @@
         <label class="chip"><input type="checkbox" id="showk" checked>kernel animation</label>
         <label class="chip"><input type="checkbox" id="showl" checked>labels</label>
         <label class="chip" title="translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>size envelope</label>
+        <label class="chip" id="depthchip" title="line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>show depth <small style="opacity:.55;margin-left:3px">line view only</small></label>
         <label class="chip" title="animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>fold animation</label>
         <label class="chip" title="coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>block floors</label>
         <label class="chip" title="fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">collapse blocks</label>
@@ -280,6 +283,7 @@ function makeView(){
     nodes.push({name: g, kind: "group", label: `${ms.length} layers`, units: last.units, shape: last.shape, tshape: last.tshape,
                 dshape: last.dshape, sampled: last.sampled, heads: null, params: ms.reduce((a, m) => a + m.params, 0),
                 attrs: {layers: ms.length}, path: g, numel: last.numel, flops: ms.reduce((a, m) => a + m.flops, 0),
+                level: ms[0].level,                       // a block sits at the level where it starts
                 members: ms.map(m => m.name), memberKinds: kinds, actKey: last.name, block: g});
   });
   const seen = new Set(), edges = [];
@@ -297,8 +301,19 @@ function makeView(){
   return {...G0, nodes, edges, rep: repm, blockColors: bcol, blockCount: new Set(Object.values(all)).size,
           collapsedCount: new Set(Object.values(collapsed)).size};
 }
+// "show depth" needs 3+ resolution levels and the line view; the tick is kept so it comes back when you return to line
+function updateDepthChip(){
+  if (!G) return;
+  const hasLv = !!(G.levels && G.levels.length >= 3), line = $("layout").value === "line";
+  $("showdepth").disabled = !(hasLv && line);
+  $("depthchip").style.opacity = hasLv && line ? "" : "0.45";
+  $("depthchip").title = !hasLv ? "depth needs a model with 3 or more resolution levels (U-Net, VAE, ResNet, VGG…)"
+    : !line ? "depth is only available in the line view: switch View to “line”"
+    : "lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom";
+}
 function updateBlockButtons(){
   if (!G) return;
+  updateDepthChip();
   const n = G.blockCount || 0;
   $("collapseall").disabled = n === 0 || G.collapsedCount === n;
   $("expandall").disabled = n === 0 || G.collapsedCount === 0;
@@ -469,6 +484,8 @@ function layout(){
     }
   });
   G.edges.forEach(e => { e.skip = nodeBy[e.dst].depth - nodeBy[e.src].depth > 1; });
+  // depth levels: each layer hangs lower the more its feature map has been downsampled
+  G.depthOn = !!(G.levels && G.levels.length >= 3 && $("showdepth").checked);
   const cols = {};
   G.nodes.forEach(n => (cols[n.depth] ||= []).push(n));
   let X = 0;
@@ -486,6 +503,10 @@ function layout(){
   });
   G.cols = Object.keys(cols).map(Number).sort((a,b) => a-b).map(d => ({d, nodes: cols[d], ...cols[d].info}));
   G.totalLen = X;
+  // the whole U spans ~15 % of the model's length, from the fully expanded reference so folding never rescales it
+  const nl = G.levels ? G.levels.length : 0, Lref = (G0 && G0.refLen) || G.totalLen;
+  G.levelStep = clamp(0.15*Lref/Math.max(1, nl - 1), Math.max(5, 0.75*Math.max(...G.nodes.map(n => n.b.sy))), 45);
+  G.nodes.forEach(n => n.drop = G.depthOn ? (n.level || 0)*G.levelStep : 0);
 }
 
 // poses: world = P + R(yaw)·(local − (cx,0,0)); each depth column is one station on the path
@@ -523,7 +544,8 @@ function applyPose(n){
   const p = n.pose, g = n.grp;
   g.rotation.set(0, p.yaw, 0);
   const off = new T.Vector3(p.cx, 0, 0).applyAxisAngle(new T.Vector3(0,1,0), p.yaw);
-  g.position.set(p.px - off.x, p.py - off.y, p.pz - off.z);
+  const drop = $("layout").value === "line" ? (n.drop || 0) : 0;      // depth levels are a line-layout feature
+  g.position.set(p.px - off.x, p.py - off.y - drop, p.pz - off.z);
 }
 
 // ---------- builders ----------
@@ -781,7 +803,7 @@ function buildEdges(showW){
       // embedding) are conditioning, not information shortcuts
       const crosses = e.join === "cat" && bIdx != null && order[e.src] < bIdx && bIdx < order[e.dst];
       skipEdges.push({curve: new T.QuadraticBezierCurve3(p0, mid, p2), join: e.join || "add", ch: a.units, crosses,
-                      side: !spineSet.has(e.src)});
+                      side: !spineSet.has(e.src), src: e.src, dst: e.dst});
       return;
     }
     push(flow, pa); push(flow, pb);
@@ -802,6 +824,7 @@ function buildEdges(showW){
       e.sparse.slice(0, lim).forEach(([i,j,w]) => addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,j)), w, false));
     } else if (e.mode === "identity" && !thin) for (let i = 0; i < Math.min(dispUnits(a), dispUnits(b)); i++) addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,i)), 0, true);
   });
+  G.skipCurves = skipEdges;                                  // kept for the selection highlight
   const mk = (arr, mat) => { const geo = new T.BufferGeometry();
     geo.setAttribute("position", new T.Float32BufferAttribute(arr, 3)); return [geo, new T.LineSegments(geo, mat)]; };
   world.add(mk(flow, new T.LineBasicMaterial({color: 0x556070, transparent: true, opacity: 0.8}))[1]);
@@ -823,6 +846,35 @@ function buildEdges(showW){
     const [geo, l] = mk(unit, new T.LineBasicMaterial({vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false}));
     geo.setAttribute("color", new T.Float32BufferAttribute(unitCol, 3)); world.add(l);
   }
+}
+
+// selecting a layer / block lights up its skip connections and outlines the layer at the other end of each one
+let hlObjs = [], hlLabels = [];
+const HLCOL = 0x76ff03;
+function clearHighlight(){
+  hlObjs.forEach(o => { if (o.parent) o.parent.remove(o); if (o.geometry) o.geometry.dispose(); });
+  hlLabels.forEach(l => { l.d.remove(); const i = labels.indexOf(l); if (i >= 0) labels.splice(i, 1); });
+  hlObjs = []; hlLabels = [];
+}
+function refreshHighlight(){
+  clearHighlight();
+  needsRender = true;
+  if (!sel || !G.skipCurves || folding) return;
+  const seen = new Set();
+  G.skipCurves.filter(s => s.src === sel.name || s.dst === sel.name).forEach(s => {
+    const tube = new T.Mesh(new T.TubeGeometry(s.curve, 48, 0.3, 8, false),
+                            new T.MeshBasicMaterial({color: HLCOL, depthTest: false, transparent: true}));
+    tube.renderOrder = 10; world.add(tube); hlObjs.push(tube);
+    const p = nodeBy[s.src === sel.name ? s.dst : s.src];
+    if (!p || p === sel || seen.has(p.name)) return;
+    seen.add(p.name);
+    const b = p.b, box = outline(b.ox + b.sx/2, b.oy + b.sy/2, b.oz + b.sz/2, b.sx + 1, b.sy + 1, b.sz + 1, HLCOL);
+    box.material.depthTest = false; box.renderOrder = 10;
+    p.grp.add(box); hlObjs.push(box);
+    addLabel(p, `↔ ${s.join === "cat" ? "concat" : "add"} skip ${s.src === sel.name ? "to" : "from"} ${sel.name}`,
+             new T.Vector3(b.ox + b.sx/2, b.oy + b.sy + 1.6, b.oz + b.sz/2), "#76ff03", "", true, p);
+    const l = labels[labels.length - 1]; l.always = true; hlLabels.push(l);
+  });
 }
 
 // bake every node's cells and outlines into one instanced mesh per geometry + one line buffer
@@ -979,6 +1031,37 @@ function buildBlockFloors(){
   });
 }
 
+// a vertical ruler left of the model (line layout): one tick per resolution level, faint guides along the model
+function buildDepthRuler(){
+  G.rulerBox = null;
+  if (!G.depthOn || $("layout").value !== "line") return;
+  const lv = G.levels, step = G.levelStep, c0 = G.cols[0];
+  const x0 = c0.cx - c0.ext/2 - 7, zb = -Math.max(...G.cols.map(c => c.zext))/2 - 3, top = G.nodes.reduce((a, n) => Math.max(a, n.b.sy), 0)/2 + 1;
+  const ybot = -(lv.length - 1)*step, bn = G.analysis && G.analysis.bottleneck && nodeBy[G.rep[G.analysis.bottleneck]];
+  const bl = bn ? bn.level : null;
+  const pts = [], guide = [];
+  const seg = (a, p, q) => a.push(p[0], p[1], p[2], q[0], q[1], q[2]);
+  seg(pts, [x0, top, 0], [x0, ybot - top, 0]);
+  const add3 = (arr, mat) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(arr, 3));
+    const l = new T.LineSegments(g, mat); l.frustumCulled = false; world.add(l); return l; };
+  const head = document.createElement("div"); head.className = "lb rl";
+  head.innerHTML = `<b style="color:#b0bec5;font-size:11px;font-weight:500">depth · resolution level</b><span>lower = more downsampled</span>`;
+  $("labels").appendChild(head); labels.push({d: head, pos: new T.Vector3(x0 - 1.2, top + 2.5, 0), node: null, always: true});
+  lv.forEach(l => {
+    const y = -l.level*step, hot = l.level === bl;
+    seg(pts, [x0 - 0.8, y, 0], [x0 + 0.8, y, 0]);
+    seg(guide, [x0, y, zb], [G.totalLen, y, zb]);
+    const d = document.createElement("div"); d.className = "lb rl";
+    const col = hot ? "#ffd54f" : "#b0bec5";
+    d.innerHTML = `<b style="color:${col};font-size:11px;font-weight:500">${hot ? "◆ " : ""}L${l.level} · ${l.hw[0]}×${l.hw[1]}</b>` +
+      `<span>${l.ch ? (l.ch[0] === l.ch[1] ? l.ch[0] : l.ch[0] + "–" + l.ch[1]) + " ch · " : ""}${l.count} layers${hot ? " · bottleneck" : ""}</span>`;
+    $("labels").appendChild(d); labels.push({d, pos: new T.Vector3(x0 - 1.2, y, 0), node: null, always: true});
+  });
+  G.rulerBox = new T.Box3(new T.Vector3(x0 - Math.max(16, 0.12*G.totalLen), ybot - top, zb), new T.Vector3(x0, top + 3, 0));
+  add3(pts, new T.LineBasicMaterial({color: 0x90a4ae}));
+  add3(guide, new T.LineBasicMaterial({color: 0x90a4ae, transparent: true, opacity: 0.18}));
+}
+
 function renderProfile(){
   const cv_ = $("profile"), c = cv_.getContext("2d"), W_ = cv_.width, H_ = cv_.height;
   c.clearRect(0, 0, W_, H_);
@@ -1017,16 +1100,24 @@ function rebuild(){
     mergeStatic();
     buildBlockFloors();
     buildAnalysis();
+    buildDepthRuler();
     renderProfile();
   }
   refreshSweeps();
   if (sel) labels.forEach(l => l.d.classList.toggle("sel", l.node === sel));
+  hlObjs = []; hlLabels = [];                  // the old world and its labels are gone
+  if (!folding) refreshHighlight();
 }
 
 function fit(apply){
   world.updateMatrixWorld(true);
   const box = new T.Box3();
   pickers.forEach(p => box.union(new T.Box3().setFromObject(p)));   // instanced cells don't report per-instance bounds
+  if (G.rulerBox) box.union(G.rulerBox);
+  if (document.getElementById("layout").value === "line"){    // keep the model (and the depth ruler) clear of the control panel
+    const pw = $("ctl").classList.contains("closed") ? 70 : 400, f = Math.max(0.4, (innerWidth - pw)/innerWidth);
+    box.min.x -= (box.max.x - box.min.x)*(1/f - 1);
+  }
   const size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
   const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
   const mode = document.getElementById("layout").value;
@@ -1093,6 +1184,7 @@ function heat(canvas, M, cell){
   for (let i = 0; i < R; i++) for (let j = 0; j < C; j++){ c.fillStyle = cssDiv(M[i][j]/mx); c.fillRect(j*cell, i*cell, cell, cell); }
 }
 function showPanel(){
+  refreshHighlight();
   const p = document.getElementById("panel");
   if (!sel){ p.style.display = "none"; return; }
   const n = sel, k = KIND[n.kind];
@@ -1100,7 +1192,9 @@ function showPanel(){
                 ["neurons (units)", n.units], ["activation size", n.numel.toLocaleString() + " values"],
                 ["FLOPs (approx.)", fmtParams(n.flops).replace(" ", "") + "FLOP"],
                 ...(n.sampled ? [["shown (sampled)", "[" + n.dshape.join("×") + "]"]] : []), ["parameters", n.params.toLocaleString()],
-                ...Object.entries(n.attrs).map(([a,v]) => [a, Array.isArray(v) ? v.join("×") : v])];
+                ...Object.entries(n.attrs).map(([a,v]) => [a, Array.isArray(v) ? v.join("×") : v]),
+                ...(() => { const sk = G.edges.filter(e => e.skip && (e.src === n.name || e.dst === n.name));
+                  return sk.length ? [["skip links", sk.map(e => `<span style="color:#76ff03">↔</span> ${e.src === n.name ? e.dst : e.src} (${e.join === "cat" ? "concat" : "add"})`).join("<br>")]] : []; })()];
   p.innerHTML = `<h2 style="color:${k.color}">${n.name}</h2><div class="k">${n.label}</div>${describeLayer(n)}
     <table>${rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table><div id="extras"></div>`;
   p.style.display = "block";
@@ -1157,7 +1251,7 @@ function animate(t){
   renderer.render(scene, camera);
   labels.forEach(l => {
     v3.copy(l.pos).project(camera);
-    const vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || camera.position.distanceTo(l.pos) < 70);
+    const vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || l.always || camera.position.distanceTo(l.pos) < 70);
     l.d.style.display = vis ? "block" : "none";
     if (vis){ l.d.style.left = (v3.x*0.5+0.5)*innerWidth + "px"; l.d.style.top = (-v3.y*0.5+0.5)*innerHeight + "px"; }
   });
@@ -1344,6 +1438,7 @@ function viewAlong(){
   try { if (localStorage.getItem("nnviz.card") === "0") $("cardtoggle").checked = false; } catch (e) {}
   if (qp.get("layout")) $("layout").value = qp.get("layout");
   if (qp.get("weights") === "0") $("showw").checked = false;
+  if (qp.get("depth") === "0") $("showdepth").checked = false;
   if (qp.get("labels") === "0") { $("showl").checked = false; $("labels").style.display = "none"; }
   if (qp.get("model") && qp.get("model") !== ms.current && ms.models.some(m => m.id === qp.get("model")))
     await busy(`loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`));
@@ -1377,10 +1472,11 @@ function viewAlong(){
     });
     e.target.value = "";
   };
-  $("layout").onchange = e => { arrange(e.target.value); rebuild(); fit(); syncSeg(); };
+  $("layout").onchange = e => { arrange(e.target.value); rebuild(); fit(); syncSeg(); updateDepthChip(); };
   $("metric").onchange = () => { rebuild(); renderLegend(); };
   $("showenv").onchange = () => rebuild();
   $("showfloor").onchange = () => rebuild();
+  $("showdepth").onchange = () => { rebuildAll(true); fit(); };
   $("grpblocks").onchange = () => transition(() => expanded.clear(), true);
   $("collapseall").onclick = () => transition(() => { $("grpblocks").checked = true; expanded.clear(); }, true);
   $("expandall").onclick = () => transition(() => { $("grpblocks").checked = false; expanded.clear(); }, true);

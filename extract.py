@@ -356,8 +356,37 @@ class NetGraph:
                 self.edges.append(e)
         self.total_params = sum(p.numel() for p in model.parameters())
         self.graph = {"nodes": self.nodes, "edges": self.edges, "params": self.total_params, "tracer": self.tracer,
-                      "analysis": self._analyze()}
+                      "analysis": self._analyze(), "levels": self._levels()}
         del vals
+
+    # --- resolution levels: how many times the feature map has been downsampled since the input (0 = full size).
+    # Every node gets a "level"; non-spatial tensors (tokens, vectors) inherit it from their producer.
+    def _levels(self):
+        N = len(self.nodes)
+        # 1x1 maps are not resolution levels: global-pool outputs, a GAN's latent z and broadcast conditioning vectors
+        # (timestep embeddings reshaped to [C,1,1]) all look like that, so they inherit a level instead of defining one
+        areas = sorted({t[1] * t[2] for t in (d["tshape"] for d in self.nodes) if len(t) == 3 and t[1] * t[2] > 1},
+                       reverse=True)
+        rank = {a: r for r, a in enumerate(areas)}
+        idx = {d["name"]: i for i, d in enumerate(self.nodes)}
+        lv = [None] * N
+        for i, d in enumerate(self.nodes):
+            t = d["tshape"]
+            if len(t) == 3 and t[1] * t[2] > 1: lv[i] = rank[t[1] * t[2]]
+            else: lv[i] = next((lv[idx[s]] for s in self.srcs.get(d["name"], []) if lv[idx[s]] is not None), None)
+        for e in reversed(self.edges):                     # inputs / side branches: take the level of their consumer
+            s, t = idx[e["src"]], idx[e["dst"]]
+            if lv[s] is None and lv[t] is not None: lv[s] = lv[t]
+        for i, d in enumerate(self.nodes):
+            d["level"] = lv[i] if lv[i] is not None else 0
+        out = []
+        for a in areas:
+            ms = [d for d in self.nodes if d["level"] == rank[a]]
+            sq = next((d["tshape"] for d in self.nodes if len(d["tshape"]) == 3 and d["tshape"][1] * d["tshape"][2] == a), None)
+            ch = [d["tshape"][0] for d in ms if len(d["tshape"]) == 3 and d["tshape"][1] * d["tshape"][2] == a]
+            out.append({"level": rank[a], "hw": [sq[1], sq[2]], "count": len(ms),
+                        "ch": [min(ch), max(ch)] if ch else None})
+        return out
 
     # --- architecture analysis: main path, bottleneck ("deepest level"), encoder/decoder stages, bypassing skips
     def _analyze(self):

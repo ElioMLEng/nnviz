@@ -16,6 +16,11 @@ with live activations for a chosen input.
   attention maps, router gates.
 - **Architecture analysis**: bottleneck ("deepest level") detection for autoencoders / U-Nets, encoder–decoder stages,
   skip connections (residual vs concatenation vs bypassing), tensor-size envelope and profile.
+- **Depth levels** (line view): every layer hangs lower the more its feature map has been downsampled, so a U-Net draws
+  a U with the bottleneck at the bottom and a ResNet a descending staircase. A vertical ruler lists each level
+  (resolution, channels, layer count). Offered only for models with 3+ resolution levels; toggle with *depth levels*.
+- **Skip-connection highlight**: select a layer or block and its skip links light up in green, with the layer at the
+  other end outlined and labelled (also listed in the side panel).
 - **Colour layers by** parameters, FLOPs, activation size, sparsity, mean |activation| or residual change.
 - **Collapsible blocks** with animated fold / unfold, and layouts: line, folded grid, spiral.
 - **Model cards** for each zoo model (what it is known for, what it introduced, what to look for).
