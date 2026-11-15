@@ -30,6 +30,19 @@ with live activations for a chosen input.
 - **Model cards** for each zoo model (what it is known for, what it introduced, what to look for).
 - **Image gallery and controls** where they make sense (DDPM timestep, GAN latent interpolation).
 
+## No-Python version (static site)
+To explore the zoo without installing anything, use the static build: open `site/index.html` directly in a browser
+(double-click it; no server, no Python, no Node), or host the `site/` folder on any static host (GitHub Pages, Netlify…).
+
+It contains every zoo model with pre-computed activations for 6 inputs × 2 noise seeds per model, and 5 positions per
+slider (DDPM timestep, GAN latent). Model import and pretrained-weight download need the Python version below.
+
+Rebuild it after changing the models or the UI:
+```bash
+python server.py 8765            # in one terminal
+python export_static.py          # in another; writes ./site
+```
+
 ## Run
 ```bash
 python -m venv .venv

@@ -77,8 +77,13 @@ const glance = (what, analogy, where) => `<div class="glance"><div><b>Purpose</b
 const procon = (pros, cons) => `<div class="pc"><div class="pro"><b>Strengths</b><ul>${pros.map(p => `<li>${p}</li>`).join("")}</ul></div>` +
   `<div class="con"><b>Limits</b><ul>${cons.map(p => `<li>${p}</li>`).join("")}</ul></div></div>`;
 const uses = items => `<div class="uses">${items.map(([i, t, d]) => `<div><i aria-hidden="true">${i}</i><span><b>${t}.</b> ${d}</span></div>`).join("")}</div>`;
-const card = (k, name, sub, what, ana, where) => `<div class="card" style="--k:${k}"><h5><span></span>${name}</h5>` +
-  `<div style="color:var(--mut);font-size:11px;margin-top:-2px">${sub}</div><p>${what}</p><p class="ana">${ana}</p><div class="where"><b>Where:</b> ${where}</div></div>`;
+const card = (k, name, sub, what, ana, where, fx) => `<div class="card" style="--k:${k}"><h5><span></span>${name}</h5>` +
+  `<div style="color:var(--mut);font-size:11px;margin-top:-2px">${sub}</div><p>${what}</p>` +
+  (fx ? `<div class="fx sm">${fx.map(l => `<div>${l}</div>`).join("")}</div>` : "") +
+  `<p class="ana">${ana}</p><div class="where"><b>Where:</b> ${where}</div></div>`;
+// formula block: equation lines, then a key explaining every symbol
+const formula = (lines, key, note) => `<h4>Formula</h4><div class="fx">${lines.map(l => `<div>${l}</div>`).join("")}</div>` +
+  `<table class="sym">${key.map(([s, d]) => `<tr><td>${s}</td><td>${d}</td></tr>`).join("")}</table>` + (note ? `<p class="fnote">${note}</p>` : "");
 
 const figFC = fig((() => {
   const ins = [0, 1, 2, 3, 4], outs = [0, 1, 2], X0 = 150, X1 = 400, yi = i => 22 + i*28, yo = i => 36 + i*35;
@@ -275,6 +280,11 @@ const LEARN = [
   <li>Each output neuron has its own weight for <b>every</b> input. Together they form the matrix <code>W [out, in]</code>.</li>
   <li>Compute <code>y = W·x + b</code>: one matrix product gives all outputs at once.</li>
   <li>Usually follow it with a non-linearity (ReLU, GELU) so that stacked layers can bend the decision boundary.</li></ol>
+  ${formula([`y = W·x + b`, `y<sub>i</sub> = Σ<sub>j</sub> W<sub>ij</sub> · x<sub>j</sub> + b<sub>i</sub>`,
+             `<span class="c">parameters = n<sub>in</sub> · n<sub>out</sub> + n<sub>out</sub>      FLOPs ≈ 2 · n<sub>in</sub> · n<sub>out</sub></span>`],
+    [["x ∈ ℝ<sup>n<sub>in</sub></sup>", "input vector"], ["W ∈ ℝ<sup>n<sub>out</sub> × n<sub>in</sub></sup>", "weight matrix: row i holds the weights of output neuron i"],
+     ["b ∈ ℝ<sup>n<sub>out</sub></sup>", "bias: a learned offset per output"], ["y<sub>i</sub>", "output neuron i: a weighted sum of all inputs"]],
+    "For a batch, X has shape [N, n<sub>in</sub>] and the layer computes Y = X·Wᵀ + b in one matrix product.")}
   ${procon(["Universal: with enough neurons, two layers can approximate any continuous function.", "One fast matrix multiply, ideal for GPUs."],
            ["Parameter-hungry: in × out weights. A 224×224 RGB image flattened into 1,000 neurons is 150 M weights.", "Ignores structure: it doesn't know that neighbouring pixels or consecutive words are related."])}
   <h4>In real life</h4>
@@ -298,6 +308,12 @@ const LEARN = [
   <li>Slide it one step (the <b>stride</b>) and repeat. The grid of scores is a <b>feature map</b>.</li>
   <li>A layer learns many filters (64, 128, 512…). Each produces one output channel: one for vertical edges, one for fur texture, and so on.</li>
   <li>Stacking layers widens the <b>receptive field</b>: deep neurons “see” large regions, so they detect whole objects.</li></ol>
+  ${formula([`y[o, i, j] = b[o] + Σ<sub>c</sub> Σ<sub>u=0</sub><sup>k−1</sup> Σ<sub>v=0</sub><sup>k−1</sup> W[o, c, u, v] · x[c, s·i + u, s·j + v]`,
+             `<span class="c">H<sub>out</sub> = ⌊(H + 2p − k) / s⌋ + 1      parameters = C<sub>out</sub> · C<sub>in</sub> · k² + C<sub>out</sub></span>`,
+             `<span class="c">FLOPs ≈ 2 · k² · C<sub>in</sub> · C<sub>out</sub> · H<sub>out</sub> · W<sub>out</sub></span>`],
+    [["x[c, h, w]", "input: C<sub>in</sub> channels of size H × W (padded with p zeros on each side)"], ["W[o, c, u, v]", "filter weights: C<sub>out</sub> filters, each C<sub>in</sub> × k × k"],
+     ["y[o, i, j]", "output channel o at position (i, j)"], ["k, s, p", "kernel size, stride (step), padding"], ["b[o]", "one bias per output channel"]],
+    "Strictly this is a cross-correlation (the filter isn't flipped); deep-learning libraries call it convolution anyway.")}
   ${procon(["Weight sharing: the same 3×3 filter is reused everywhere, so there are very few parameters.", "Translation equivariance: a cat is recognised in any corner of the image.", "Built-in prior that nearby pixels belong together."],
            ["Local view: relating distant parts of an image needs many layers.", "Fixed grid: less natural for irregular data such as graphs or sets."])}
   <h4>In real life</h4>
@@ -322,6 +338,14 @@ const LEARN = [
   <li><b>Softmax</b> turns each row of scores into weights that add up to 100%.</li>
   <li>Each token's output is the weighted average of all values: <code>softmax(Q·Kᵀ / √d) · V</code>.</li>
   <li><b>Multi-head</b>: several attention patterns run in parallel (one tracks grammar, another references, another position) and are then merged.</li></ol>
+  ${formula([`Q = X·W<sub>Q</sub>     K = X·W<sub>K</sub>     V = X·W<sub>V</sub>`,
+             `Attention(Q, K, V) = softmax( Q·Kᵀ / √d<sub>k</sub> + M ) · V`,
+             `softmax(z)<sub>i</sub> = e<sup>z<sub>i</sub></sup> / Σ<sub>j</sub> e<sup>z<sub>j</sub></sup>`,
+             `MultiHead(X) = Concat(head<sub>1</sub>, …, head<sub>h</sub>) · W<sub>O</sub>`,
+             `<span class="c">parameters ≈ 4 · d² (W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub>, W<sub>O</sub>)      score matrix: T × T per head</span>`],
+    [["X ∈ ℝ<sup>T × d</sup>", "the sequence: T tokens, each a d-dimensional vector"], ["W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub>", "learned projections into queries, keys and values (d<sub>k</sub> = d / h per head)"],
+     ["Q·Kᵀ", "T × T table of similarity scores: row = query token, column = key token"], ["√d<sub>k</sub>", "scaling that keeps scores in a range where softmax still learns"],
+     ["M", "mask: −∞ above the diagonal in GPT-style models, so a token can't see the future (0 otherwise)"], ["W<sub>O</sub>", "output projection that merges the h heads"]])}
   ${procon(["Any token can reach any other in a single step, so long-range dependencies come easily.", "Dynamic: the connections change for every input, unlike fixed convolution filters.", "Highly parallel on GPUs, which made scaling to trillions of tokens possible."],
            ["Cost grows with the square of the length: 2× the context means 4× the compute and memory for the scores.", "Needs positional encodings, because on its own attention ignores word order."])}
   <h4>In real life</h4>
@@ -338,28 +362,28 @@ const LEARN = [
   <div class="cards">
   ${card("#ff9800", "Activation functions", "ReLU, GELU, sigmoid, SiLU",
     "Bend the signal after each linear step. ReLU keeps positives and zeroes negatives; without a non-linearity, depth would be useless.",
-    "A dimmer switch that only lets light through above a threshold.", "after almost every linear or conv layer")}
+    "A dimmer switch that only lets light through above a threshold.", "after almost every linear or conv layer", ["ReLU(x) = max(0, x)", "GELU(x) = x · Φ(x)", "σ(x) = 1 / (1 + e<sup>−x</sup>)", "SiLU(x) = x · σ(x)"])}
   ${card("#ffca28", "Normalisation", "BatchNorm, LayerNorm, RMSNorm",
     "Re-centres and re-scales activations so every layer sees numbers in a healthy range. Training becomes faster and far more stable.",
-    "Auto-levels on a photo before passing it to the next editor.", "ResNets (BatchNorm), every Transformer block (LayerNorm / RMSNorm)")}
+    "Auto-levels on a photo before passing it to the next editor.", "ResNets (BatchNorm), every Transformer block (LayerNorm / RMSNorm)", ["y = γ ⊙ (x − μ) / √(σ² + ε) + β", "RMSNorm: y = γ ⊙ x / √(mean(x²) + ε)", "<span class=\"c\">μ, σ²: mean and variance over features (LayerNorm) or over the batch (BatchNorm); γ, β learned</span>"])}
   ${card("#bcaaa4", "Pooling", "max pool, average pool",
     "Shrinks a feature map by summarising each small window (its maximum or average). Cuts compute and adds tolerance to small shifts.",
-    "Reading a map at a coarser zoom: you keep the landmarks, not every street.", "CNNs between stages; global pooling before the classifier")}
+    "Reading a map at a coarser zoom: you keep the landmarks, not every street.", "CNNs between stages; global pooling before the classifier", ["max: y[i, j] = max<sub>u,v &lt; k</sub> x[s·i + u, s·j + v]", "avg: y[i, j] = (1/k²) Σ<sub>u,v</sub> x[s·i + u, s·j + v]", "<span class=\"c\">no parameters · H<sub>out</sub> = ⌊(H − k) / s⌋ + 1</span>"])}
   ${card("#4db6ac", "Embedding", "token / patch / position embeddings",
     "A lookup table that turns discrete ids (words, tokens, user ids) into learned vectors. Similar meanings end up close together.",
-    "A dictionary whose definitions are coordinates in a “meaning space”.", "the first layer of every language model; recommenders")}
+    "A dictionary whose definitions are coordinates in a “meaning space”.", "the first layer of every language model; recommenders", ["e = E[id]  (row lookup)", "= one_hot(id) · E,   E ∈ ℝ<sup>V × d</sup>", "<span class=\"c\">V: vocabulary size · d: vector size · parameters = V · d</span>"])}
   ${card("#ffffff", "Residual connection", "skip connection, x + F(x)",
     "Adds a layer's input to its output, so each block only learns a correction. Gradients flow straight through, so networks with 100+ layers train.",
-    "Editing a draft with tracked changes instead of rewriting it from scratch.", "ResNet, every Transformer, U-Net (as concatenated skips)")}
+    "Editing a draft with tracked changes instead of rewriting it from scratch.", "ResNet, every Transformer, U-Net (as concatenated skips)", ["y = x + F(x)", "∂y/∂x = I + ∂F/∂x", "<span class=\"c\">the identity term I lets gradients pass even when ∂F/∂x is tiny</span>"])}
   ${card("#d4e157", "Mixture of experts", "MoE router + experts",
     "A small router sends each token to a few specialist sub-networks out of many. Huge total capacity, but only a fraction runs per token.",
-    "A hospital triage desk sending each patient to two specialists out of fifty.", "Mixtral, DeepSeek, GPT-OSS-style models")}
+    "A hospital triage desk sending each patient to two specialists out of fifty.", "Mixtral, DeepSeek, GPT-OSS-style models", ["g = softmax( TopK(W<sub>r</sub> · x) )", "y = Σ<sub>i ∈ TopK</sub> g<sub>i</sub> · E<sub>i</sub>(x)", "<span class=\"c\">W<sub>r</sub>: router weights · E<sub>i</sub>: expert i (an MLP) · only k experts run</span>"])}
   ${card("#5c6bc0", "Up-sampling", "transposed conv, interpolation",
     "Enlarges feature maps again, to rebuild a full-resolution image from a compact code.",
-    "Zooming a sketch back up and re-drawing the details.", "U-Net decoders, VAE / GAN generators, super-resolution")}
+    "Zooming a sketch back up and re-drawing the details.", "U-Net decoders, VAE / GAN generators, super-resolution", ["nearest: y[i, j] = x[⌊i/s⌋, ⌊j/s⌋]", "transposed conv: H<sub>out</sub> = (H − 1)·s − 2p + k", "<span class=\"c\">s: scale factor (stride) · k: kernel size · p: padding</span>"])}
   ${card("#8a8a96", "Dropout", "regularisation (training only)",
     "Randomly switches off a fraction of neurons during training so the network can't rely on any single one. Reduces overfitting.",
-    "Training a team where random members are absent each day, so everyone learns every role.", "classifier heads, older Transformers, small datasets")}
+    "Training a team where random members are absent each day, so everyone learns every role.", "classifier heads, older Transformers, small datasets", ["y = m ⊙ x / (1 − p),   m<sub>i</sub> ~ Bernoulli(1 − p)", "<span class=\"c\">training only; at inference y = x · p: drop rate (e.g. 0.1)</span>"])}
   </div>
   <div class="try"><b>In nnviz.</b> These layers have their own colours in the legend (bottom-left). Colour by <i>Residual change</i> to see how much
   each block actually modifies its input, and open <code>gpt-oss-style</code> to see an MoE router choose experts per token.</div>`},

@@ -11,3 +11,6 @@ dbg_*.py
 
 # superseded first prototype (2D view); not compatible with the current API
 static/2d.html
+
+# generated static build (python export_static.py)
+site/
