@@ -14,3 +14,6 @@ static/2d.html
 
 # generated static build (python export_static.py)
 site/
+
+# computed graph/activation cache (server.py)
+.cache/

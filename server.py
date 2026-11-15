@@ -27,7 +27,39 @@ MAX_UPLOAD = int(os.environ.get("NNVIZ_MAX_UPLOAD_MB", 500)) * 1024 * 1024
 UPLOADS.mkdir(parents=True, exist_ok=True)
 lock = threading.Lock()
 STATE = {"net": None, "id": None, "name": None, "make_input": None, "classes": [], "load_s": 0.0,
-         "controls": [], "extras": None}
+         "controls": [], "extras": None, "key": None, "build": None, "graph": None}
+
+# ---------------------------------------------------------------- disk cache
+# Graphs and activations of zoo models are computed once and kept in .cache/: switching models or inputs afterwards
+# only reads a file, the network is never rebuilt. The key includes a hash of the code that produces the data.
+import hashlib
+CACHE = Path(os.environ.get("NNVIZ_CACHE_DIR", HERE / ".cache"))
+_code = hashlib.sha1(b"".join((HERE / f).read_bytes() for f in
+                              ("extract.py", "zoo.py", "zoo_extra.py", "zoo_llm.py", "toynet.py", "server.py") if (HERE / f).exists()))
+CACHE_VER = _code.hexdigest()[:10]
+
+
+def cache_path(key, name):
+    return CACHE / CACHE_VER / key / f"{name}.json" if key else None
+
+
+def cache_get(key, name):
+    f = cache_path(key, name)
+    return f.read_bytes() if f and f.exists() else None
+
+
+def cache_put(key, name, body):
+    f = cache_path(key, name)
+    if f is None: return
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp"); tmp.write_bytes(body); tmp.replace(f)
+
+
+def ensure_net():
+    """Build + trace the model only when something must actually be computed (cache miss)."""
+    if STATE["net"] is None and STATE["build"] is not None:
+        STATE["build"]()
+    return STATE["net"]
 
 
 def to_image(t):
@@ -41,7 +73,7 @@ def to_image(t):
     if t.ndim != 3 or t.shape[0] not in (1, 2, 3) or min(t.shape[1:]) < 4: return None
     if t.shape[0] == 2: t = (t[1] - t[0])[None]                  # 2-class map -> difference
     h, w = t.shape[1:]
-    if max(h, w) > 64: t = F.adaptive_avg_pool2d(t[None], (min(h, 64), min(w, 64)))[0]
+    if max(h, w) > 96: t = F.adaptive_avg_pool2d(t[None], (min(h, 96), min(w, 96)))[0]
     lo, hi = t.min(), t.max()
     t = (t - lo) / (hi - lo + 1e-9)
     return {"c": int(t.shape[0]), "h": int(t.shape[1]), "w": int(t.shape[2]),
@@ -59,13 +91,15 @@ def parse_input_spec(spec):
     return lambda cls, seed: torch.randn(*shape, generator=torch.Generator().manual_seed(seed))
 
 
-def install(model, make_input, classes, model_id, name, controls=None, extras=None):
+def install(model, make_input, classes, model_id, name, controls=None, extras=None, post=None, labels=None, trained=False, key=None):
     t0 = time.time()
     example = make_input(0, 0)
     net = NetGraph(model.eval(), example)
+    if post: post(net)                      # e.g. true-scale numbers for the frontier LLM twins
     with lock:
         old = STATE["net"]
         STATE.update(net=net, id=model_id, name=name, make_input=make_input, classes=classes, load_s=time.time() - t0,
+                     labels=labels, trained=trained, key=key, build=None, graph=None,
                      controls=controls or [], extras=extras)
     del old
     gc.collect()
@@ -73,9 +107,29 @@ def install(model, make_input, classes, model_id, name, controls=None, extras=No
 
 def load_registry(model_id, pretrained):
     e = REGISTRY[model_id]
-    model = e["build"](pretrained=pretrained) if pretrained else e["build"]()
-    install(model, e["make_input"], e["classes"], model_id, model_id + (" (pretrained)" if pretrained else ""),
-            controls=e.get("controls"), extras=e.get("extras"))
+    key = model_id + ("-pretrained" if pretrained else "")
+    name = model_id + (" (pretrained)" if pretrained else "")
+    labels = e["labels"]() if e.get("labels") else None
+    trained = bool(pretrained) or model_id == "toy-mixed"
+
+    def build():
+        model = e["build"](pretrained=pretrained) if pretrained else e["build"]()
+        install(model, e["make_input"], e["classes"], model_id, name, controls=e.get("controls"), extras=e.get("extras"),
+                post=e.get("post"), labels=labels, trained=trained, key=key)
+
+    t0 = time.time()
+    graph = cache_get(key, "graph")
+    if graph is None:                       # first time: build, trace, and remember the graph
+        build()
+        STATE["build"] = build
+        return
+    with lock:                              # cached: nothing is built until an uncached activation is requested
+        old = STATE["net"]
+        STATE.update(net=None, id=model_id, name=name, make_input=e["make_input"], classes=e["classes"], labels=labels,
+                     trained=trained, key=key, build=build, graph=graph, controls=e.get("controls") or [],
+                     extras=e.get("extras"), load_s=time.time() - t0)
+    del old
+    gc.collect()
 
 
 def load_upload(path, input_spec):
@@ -119,6 +173,21 @@ def load_upload(path, input_spec):
     install(model, make_input, classes, "upload:" + path.name, path.name)
 
 
+def top_k(out, labels, k=5):
+    """Top-k output classes (or next tokens) with probabilities, for the output card."""
+    from extract import first_tensor
+    out = first_tensor(out)
+    if out is None: return None
+    l = out[0] if out.ndim >= 2 else out
+    if l.ndim == 2: l = l[-1]
+    if l.ndim != 1 or l.numel() < 2: return None
+    p = l.float().softmax(-1)
+    v, i = p.topk(min(k, p.numel()))
+    seq = out.ndim == 3
+    name = lambda j: labels[j] if labels and len(labels) == p.numel() else (f"token #{j}" if seq else f"class #{j}")
+    return [{"i": int(j), "label": name(int(j)), "p": float(x)} for x, j in zip(v, i)]
+
+
 def prediction(out):
     l = out[0] if out.ndim >= 2 else out
     if l.ndim == 2: l = l[-1]                      # sequence model: next-token logits at last position
@@ -128,6 +197,13 @@ def prediction(out):
 
 
 class H(BaseHTTPRequestHandler):
+    def _raw(self, body, code=200):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode()
         self.send_response(code)
@@ -155,13 +231,24 @@ class H(BaseHTTPRequestHandler):
                      "params": param_count(k), "info": v.get("info")}
                     for k, v in REGISTRY.items()]})
             if u.path == "/api/graph":
-                net = STATE["net"]
-                return self._json({**net.graph, "classes": STATE["classes"], "model": STATE["id"],
-                                   "name": STATE["name"], "load_s": round(STATE["load_s"], 1),
-                                   "controls": STATE["controls"]})
+                if STATE["graph"] is None:
+                    net = ensure_net()
+                    STATE["graph"] = json.dumps({**net.graph, "classes": STATE["classes"], "model": STATE["id"],
+                                                 "name": STATE["name"], "load_s": round(STATE["load_s"], 1),
+                                                 "controls": STATE["controls"]}).encode()
+                    cache_put(STATE["key"], "graph", STATE["graph"])
+                    return self._raw(STATE["graph"])
+                g = json.loads(STATE["graph"])     # cached: report this (fast) load time
+                g["load_s"], g["cached"] = round(STATE["load_s"], 2), True
+                return self._json(g)
             if u.path == "/api/activations":
                 cls, seed = int(q.get("cls", [0])[0]), int(q.get("seed", [0])[0])
                 params = {k[2:]: float(v[0]) for k, v in q.items() if k.startswith("p_")}
+                ckey = f"a_{cls}_{seed}" + "".join(f"_{k}={params[k]:g}" for k in sorted(params))
+                hit = cache_get(STATE["key"], ckey)
+                if hit is not None:
+                    return self._raw(hit)
+                ensure_net()
                 with lock:
                     x = STATE["make_input"](cls, seed, **params) if params else STATE["make_input"](cls, seed)
                     acts, out = STATE["net"].activations(x)
@@ -175,7 +262,11 @@ class H(BaseHTTPRequestHandler):
                             im = to_image(tens)
                             if im: images.append({"name": name, **im})
                 pred, prob, n = prediction(out)
-                return self._json({"acts": acts, "pred": pred, "prob": prob, "n_out": n, "images": images})
+                body = json.dumps({"acts": acts, "pred": pred, "prob": prob, "n_out": n, "images": images,
+                                   "top": top_k(out, STATE.get("labels") or (STATE["classes"] if STATE["id"] == "toy-mixed" else None)),
+                                   "trained": STATE.get("trained", False)}).encode()
+                cache_put(STATE["key"], ckey, body)
+                return self._raw(body)
         except Exception as e:
             traceback.print_exc()
             return self._json({"error": f"{type(e).__name__}: {e}"}, 500)

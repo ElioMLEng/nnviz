@@ -337,7 +337,7 @@ EXTRA = {
     "dcgan-discriminator": _e("Autoencoder / GAN", lambda pretrained=False: DCGANDiscriminator().eval(), *image_input(64),
                               "DCGAN discriminator · real/fake classifier"),
     "ddpm-unet": _e("Diffusion", lambda pretrained=False: DDPMUNet().eval(), _diffusion_input,
-                    ["synthetic scene x₀", "blank image x₀ = 0"], "DDPM noise-prediction U-Net (scaled down) · inputs x_t and t",
+                    ["Photo x₀ (cat)", "Blank image x₀ = 0"], "DDPM noise-prediction U-Net (scaled down) · inputs x_t and t",
                     controls=[{"id": "t", "label": "Timestep t (0 = clean, 999 = pure noise)", "min": 0, "max": 999, "step": 10, "default": 500}],
                     extras=_diffusion_extras),
     "gpt-oss-style": _e("LLM", lambda pretrained=False: GPTOSS().eval(), *token_input(4096),

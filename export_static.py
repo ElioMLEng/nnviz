@@ -69,10 +69,11 @@ def main():
     ms = call("/api/models")
     ids = [m["id"] for m in ms["models"]]
     total, done = 0, []
+    pre = {m["id"]: m.get("pretrained") for m in ms["models"]}
     for mid in ids:
         t = time.time()
-        try:
-            call(f"/api/load?model={mid}", "POST")
+        try:   # torchvision classifiers: real ImageNet weights, so the output card shows meaningful predictions
+            call(f"/api/load?model={mid}&pretrained={1 if pre.get(mid) else 0}", "POST")
             g = call("/api/graph")
         except Exception as e:
             print(f"  skip {mid}: {e}")

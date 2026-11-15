@@ -80,6 +80,15 @@
   #title .nm i{font-style:normal;font-weight:300;opacity:.75}
   #title .sb{margin-top:5px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ad}
   #title .ln{height:2px;margin:7px 0 0 auto;width:64px;border-radius:2px;background:linear-gradient(90deg,transparent,#5cdcff)}
+  #scale{margin:8px 0 4px;padding:9px 11px;border:1px solid #2b6a86;border-radius:9px;background:linear-gradient(160deg,#0f2230,#0d1420)}
+  #scale[hidden]{display:none}
+  #scale .sh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  #scale .sh b{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc)} #scale .sh span{font-size:11px;color:var(--mut)}
+  #scale .sg{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+  #scale .sg div{display:flex;flex-direction:column}
+  #scale .sg span{font-size:10.5px;color:var(--mut)} #scale .sg b{font-size:17px;color:#fff;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  #scale .sg em{font-style:normal;font-size:10.5px;color:#66bb6a}
+  #scale .sn{margin-top:7px;font-size:10.5px;line-height:1.4;color:var(--mut)}
   #arch{font-size:11.5px;color:var(--mut);margin:2px 2px 4px;line-height:1.35}
   #arch b{color:#ffd54f;font-weight:600}
   #ctrls .ct{margin:6px 0 2px;font-size:12px;color:var(--mut)}
@@ -92,7 +101,16 @@
   #gallery figure{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 5px 3px;text-align:center}
   #gallery canvas{width:96px;height:96px;image-rendering:pixelated;display:block;border-radius:4px;background:#000}
   #gallery figcaption{font-size:10.5px;color:var(--mut);margin-top:3px;max-width:96px;line-height:1.2}
-  #profcard{pointer-events:auto;position:relative;width:100%;max-width:720px;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);padding:8px 10px 6px}
+  #gallery figure.outcard{width:230px;text-align:left;padding:8px 10px 7px;display:flex;flex-direction:column;gap:4px;box-sizing:border-box}
+  .outcard .oh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
+  .outcard .oh b{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg)} .outcard .oh span{font-size:10.5px;color:var(--mut)}
+  .outcard .orow{display:grid;grid-template-columns:96px 1fr 30px;align-items:center;gap:6px;font-size:11.5px;color:var(--mut)}
+  .outcard .ol{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .outcard .ob{height:6px;background:#1c1c26;border-radius:3px;overflow:hidden} .outcard .ob i{display:block;height:100%;background:#3d6f86;border-radius:3px}
+  .outcard .op{text-align:right;font-variant-numeric:tabular-nums}
+  .outcard .orow.top{color:#fff;font-weight:600} .outcard .orow.top .ob i{background:var(--acc)} .outcard .orow.top .op{color:var(--acc)}
+  .outcard .onote{margin-top:3px;font-size:10.5px;color:#ffb74d}
+  #profcard{pointer-events:auto;position:relative;width:100%;max-width:680px;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);padding:8px 10px 6px}
   #profcard[hidden]{display:none}
   #profcard .ph{display:flex;align-items:baseline;gap:8px;margin:0 2px 2px;min-width:0}
   #profcard .pt{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg);font-weight:600;white-space:nowrap}
@@ -106,6 +124,57 @@
   #ptip b{color:#fff} #ptip .k{color:var(--mut)} #ptip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
   #legend .mbar{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
   #legend .mbar i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
+
+  /* =================== blueprint theme (opt-in: Display › Theme) =================== */
+  :root[data-theme=blueprint]{--bg:rgba(10,44,84,.86);--line:rgba(220,236,255,.38);--mut:#a9c4e2;--fg:#f2f8ff;--acc:#ffffff;--ctl:rgba(255,255,255,.05);
+    --bp:#0e3a6b;--bp-hi:#16508f;--bp-ink:#eaf4ff;--bp-font:Bahnschrift,"DIN Alternate","Arial Narrow",system-ui,sans-serif}
+  :root[data-theme=blueprint] body{background:radial-gradient(ellipse at 50% 40%,var(--bp-hi) 0%,var(--bp) 55%,#0a2a50 100%);font-family:var(--bp-font)}
+  :root[data-theme=blueprint] #gl{background-image:
+      linear-gradient(rgba(234,244,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(234,244,255,.16) 1px,transparent 1px),
+      linear-gradient(rgba(234,244,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(234,244,255,.06) 1px,transparent 1px);
+    background-size:100px 100px,100px 100px,20px 20px,20px 20px;background-position:-1px -1px}
+  :root[data-theme=blueprint] #gl canvas{filter:grayscale(1) brightness(1.55) contrast(1.05);mix-blend-mode:screen}
+  :root[data-theme=blueprint] .lb{color:var(--bp-ink);text-shadow:0 0 3px #0e3a6b,0 0 6px #0e3a6b;font-family:var(--bp-font)}
+  :root[data-theme=blueprint] .lb b{color:#fff !important;letter-spacing:.04em} :root[data-theme=blueprint] .lb span{color:#bcd6f2}
+  :root[data-theme=blueprint] #left > section,:root[data-theme=blueprint] #legend,:root[data-theme=blueprint] #panel,:root[data-theme=blueprint] #card,
+  :root[data-theme=blueprint] #profcard,:root[data-theme=blueprint] #gallery figure,:root[data-theme=blueprint] #loading{
+    background:var(--bg);border:1px solid var(--line);border-radius:2px;box-shadow:none}
+  :root[data-theme=blueprint] #ctl .sec,:root[data-theme=blueprint] #legend .lh,:root[data-theme=blueprint] #profcard .pt{color:var(--bp-ink);letter-spacing:.16em}
+  :root[data-theme=blueprint] #ctl .sec::after{background:var(--line)}
+  :root[data-theme=blueprint] #ctl select,:root[data-theme=blueprint] #ctl button,:root[data-theme=blueprint] #ctl input:not([type]),
+  :root[data-theme=blueprint] .chip,:root[data-theme=blueprint] .seg{border-color:rgba(234,244,255,.35) !important;border-radius:2px !important;background:transparent;color:var(--fg)}
+  :root[data-theme=blueprint] #ctl select option{background:#0e3a6b}
+  :root[data-theme=blueprint] #ctl button:hover:not(:disabled){background:rgba(255,255,255,.1)}
+  :root[data-theme=blueprint] .chip:has(input:checked),:root[data-theme=blueprint] #ctl .vlist button.on,:root[data-theme=blueprint] #ctl .tabs button[aria-selected=true],
+  :root[data-theme=blueprint] .seg button.on{background:rgba(255,255,255,.16) !important;color:#fff !important;border-color:#fff !important}
+  :root[data-theme=blueprint] .chip:has(input:checked)::before,:root[data-theme=blueprint] #ctl .vlist button.on i{background:#fff;border-color:#fff}
+  :root[data-theme=blueprint] #ctl .tabs{background:transparent;border-color:var(--line);border-radius:2px}
+  :root[data-theme=blueprint] #ctl .learnbtn{background:transparent !important;border-color:#fff !important;color:#fff}
+  :root[data-theme=blueprint] #ctl .learnbtn svg{color:#fff}
+  :root[data-theme=blueprint] #title .nm{text-shadow:none;font-family:var(--bp-font);letter-spacing:.06em;text-transform:uppercase}
+  :root[data-theme=blueprint] #title .ln{background:#fff}
+  :root[data-theme=blueprint] #pred{background:transparent;border-color:#fff;color:#fff;border-radius:2px}
+  :root[data-theme=blueprint] #scale{background:transparent;border-color:#fff;border-radius:2px}
+  :root[data-theme=blueprint] #scale .sh b,:root[data-theme=blueprint] .outcard .orow.top .op{color:#fff}
+  :root[data-theme=blueprint] .outcard .ob{background:rgba(255,255,255,.12)} :root[data-theme=blueprint] .outcard .ob i{background:rgba(255,255,255,.55)}
+  :root[data-theme=blueprint] .outcard .orow.top .ob i{background:#fff}
+  :root[data-theme=blueprint] #hint{color:#a9c4e2}
+  :root[data-theme=blueprint] .modal .hc{background:#0c3360;border-color:var(--line);border-radius:3px}
+  /* drawing sheet: double border, zone markers, title block */
+  #sheet{display:none;position:fixed;inset:5px;pointer-events:none;border:1.5px solid rgba(234,244,255,.75);z-index:1}
+  #sheet::before{content:"";position:absolute;inset:14px;border:1px solid rgba(234,244,255,.45)}
+  #sheet .z{position:absolute;font:10px var(--bp-font);color:rgba(234,244,255,.7);letter-spacing:.1em}
+  :root[data-theme=blueprint] #sheet{display:block}
+  :root[data-theme=blueprint] #left{left:26px;top:26px} :root[data-theme=blueprint] #legend{left:26px;bottom:26px}
+  :root[data-theme=blueprint] #title{right:30px;top:26px} :root[data-theme=blueprint] #hint{right:30px;bottom:26px}
+  #tblock{display:none;position:fixed;right:30px;bottom:48px;z-index:2;pointer-events:none;font-family:var(--bp-font);color:var(--bp-ink);
+          border:1.5px solid rgba(234,244,255,.85);background:rgba(10,44,84,.72);border-collapse:collapse;font-size:10.5px;min-width:340px}
+  :root[data-theme=blueprint] #tblock{display:table}
+  :root[data-theme=blueprint] body:has(#panel[style*="block"]) #tblock{display:none}
+  #tblock td{border:1px solid rgba(234,244,255,.5);padding:3px 8px;vertical-align:top}
+  #tblock small{display:block;font-size:8.5px;letter-spacing:.14em;color:#a9c4e2;text-transform:uppercase}
+  #tblock b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+  #tblock .big b{font-size:16px}
   /* ---- control panel v2: header, tabs, groups ---- */
   #ctl header{align-items:center;padding:9px 10px 0 13px}
   #ctl .ver{font-size:10px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:2px}
@@ -240,6 +309,10 @@
 </head>
 <body>
 <div id="gl"></div>
+<div id="sheet" aria-hidden="true"></div>
+<table id="tblock" aria-hidden="true"><tr><td colspan="2" class="big"><small>Drawing</small><b id="tb-name">—</b></td><td><small>Project</small><b>nnviz</b></td></tr>
+<tr><td><small>Parameters</small><b id="tb-params">—</b></td><td><small>Layers</small><b id="tb-layers">—</b></td><td><small>Scale</small><b id="tb-scale">—</b></td></tr>
+<tr><td><small>Architecture</small><b id="tb-arch">—</b></td><td><small>Date</small><b id="tb-date">—</b></td><td><small>Sheet</small><b>1 / 1</b></td></tr></table>
 <div id="labels"></div>
 <div id="left">
   <section id="ctl">
@@ -269,6 +342,7 @@
         <button id="upbtn" title="Import a .py (build()) or a .pt/.pth whole-module file">Import…</button>
         <input type="file" id="file" accept=".py,.pt,.pth" style="display:none">
       </div>
+      <div id="scale" hidden></div>
       <div id="arch"></div>
       <details><summary>Import options</summary>
         <input id="inshape" placeholder="Input spec for .pt files: 1,3,224,224  or  int:1,32:50257">
@@ -315,6 +389,11 @@
       </div>
 
       <div class="pane" data-pane="display" role="tabpanel">
+      <div class="sec">Theme</div>
+      <div class="row"><div class="seg" id="themeseg" role="radiogroup" aria-label="Theme">
+        <button data-t="dark" role="radio" title="Default dark theme">Dark</button>
+        <button data-t="blueprint" role="radio" title="Engineering blueprint: white linework on blue grid paper, with a drawing title block">Blueprint</button>
+      </div></div>
       <div class="sec">Data</div>
       <div class="chips">
         <label class="chip" title="Live activation volumes for the current input"><input type="checkbox" id="showact" checked>Activations</label>
@@ -342,7 +421,7 @@
 <div id="card"></div>
 <div id="legend"></div>
 <div id="panel"></div>
-<div id="hint">Drag: orbit · Right-drag: pan · Wheel: zoom · Click a layer · <kbd>?</kbd> Help</div>
+<div id="hint">Drag: orbit · Right-drag: pan · Wheel: zoom · <kbd>?</kbd> Help</div>
 <div id="loading" role="status" aria-live="polite" hidden><span class="spin" aria-hidden="true"></span><div><b id="loadtitle">Loading</b><span id="loadmsg"></span></div></div>
 <div id="learn" class="modal" role="dialog" aria-modal="true" aria-labelledby="ltitle" hidden>
   <div class="hc">
@@ -413,7 +492,7 @@ const cssDiv = a => { const c = divColor(a); return `rgb(${c.r*255|0},${c.g*255|
 
 // ---------- three setup ----------
 const host = document.getElementById("gl");
-const renderer = new T.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+const renderer = new T.WebGLRenderer({antialias:true, preserveDrawingBuffer:true, alpha:true});
 renderer.setPixelRatio(1);   // 'easy rendering' is on by default
 renderer.setSize(innerWidth, innerHeight);
 host.appendChild(renderer.domElement);
@@ -1272,6 +1351,9 @@ function renderProfile(){
   if (!W_) return;
   if (cv_.width !== Math.round(W_*dpr) || cv_.height !== Math.round(H_*dpr)){ cv_.width = Math.round(W_*dpr); cv_.height = Math.round(H_*dpr); }
   const c = cv_.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W_, H_);
+  const BP = document.documentElement.dataset.theme === "blueprint";
+  const P = BP ? {grid: "rgba(234,244,255,.14)", axis: "rgba(234,244,255,.5)", text: "#a9c4e2", line: "#ffffff", fill: "255,255,255"}
+               : {grid: "#1e1e28", axis: "#3a3a48", text: "#8a8a96", line: "#5cdcff", fill: "92,220,255"};
   const ls = vs.map(v => Math.log10(Math.max(1, v.numel)));
   let lo = Math.floor(Math.min(...ls)), hi = Math.ceil(Math.max(...ls)); if (hi === lo) hi = lo + 1;
   const L = 40, R = 10, Tp = 8, B = 20, pw = W_ - L - R, ph = H_ - Tp - B;
@@ -1281,24 +1363,24 @@ function renderProfile(){
   const step = hi - lo > 6 ? 2 : 1;
   for (let p = lo; p <= hi; p += step){
     const y = Math.round(Y(p)) + .5;
-    c.strokeStyle = p === lo ? "#3a3a48" : "#1e1e28"; c.lineWidth = 1; c.beginPath(); c.moveTo(L, y); c.lineTo(W_ - R, y); c.stroke();
-    c.fillStyle = "#8a8a96"; c.textAlign = "right"; c.fillText(fmtCount(10**p), L - 6, y);
+    c.strokeStyle = p === lo ? P.axis : P.grid; c.lineWidth = 1; c.beginPath(); c.moveTo(L, y); c.lineTo(W_ - R, y); c.stroke();
+    c.fillStyle = P.text; c.textAlign = "right"; c.fillText(fmtCount(10**p), L - 6, y);
   }
   // x axis: layer positions
   c.textAlign = "center"; c.textBaseline = "top";
   const nt = Math.max(2, Math.min(8, Math.floor(pw/70))), every = Math.max(1, Math.ceil((vs.length - 1)/nt));
   for (let i = 0; i < vs.length; i += every){
-    const x = Math.round(X(i)) + .5; c.strokeStyle = "#3a3a48"; c.beginPath(); c.moveTo(x, Tp + ph); c.lineTo(x, Tp + ph + 4); c.stroke();
-    c.fillStyle = "#8a8a96"; c.fillText(String(i + 1), x, Tp + ph + 6);
+    const x = Math.round(X(i)) + .5; c.strokeStyle = P.axis; c.beginPath(); c.moveTo(x, Tp + ph); c.lineTo(x, Tp + ph + 4); c.stroke();
+    c.fillStyle = P.text; c.fillText(String(i + 1), x, Tp + ph + 6);
   }
   c.textAlign = "right"; c.fillStyle = "#5a5a68"; c.fillText("layer →", W_ - R, Tp + ph + 6);
   // bottleneck marker
   const an = G.analysis, bn = an && an.bottleneck && G.rep[an.bottleneck], bi = vs.findIndex(v => v.name === bn);
   if (bi >= 0){ c.strokeStyle = "rgba(255,213,79,.55)"; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(bi), Tp); c.lineTo(X(bi), Tp + ph); c.stroke(); c.setLineDash([]); }
   // area + line
-  const grad = c.createLinearGradient(0, Tp, 0, Tp + ph); grad.addColorStop(0, "rgba(92,220,255,.28)"); grad.addColorStop(1, "rgba(92,220,255,0)");
+  const grad = c.createLinearGradient(0, Tp, 0, Tp + ph); grad.addColorStop(0, `rgba(${P.fill},.28)`); grad.addColorStop(1, `rgba(${P.fill},0)`);
   c.beginPath(); c.moveTo(X(0), Tp + ph); vs.forEach((v, i) => c.lineTo(X(i), Y(ls[i]))); c.lineTo(X(vs.length - 1), Tp + ph); c.closePath(); c.fillStyle = grad; c.fill();
-  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.strokeStyle = "#5cdcff"; c.lineWidth = 1.6; c.lineJoin = "round"; c.stroke();
+  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.strokeStyle = P.line; c.lineWidth = 1.6; c.lineJoin = "round"; c.stroke();
   // points, coloured by layer type (smaller when crowded)
   const r = vs.length > pw/4 ? 1.6 : vs.length > pw/9 ? 2.4 : 3.2, selI = sel ? vs.findIndex(v => v.name === sel.name) : -1;
   vs.forEach((v, i) => { c.beginPath(); c.arc(X(i), Y(ls[i]), r, 0, 7); c.fillStyle = (KIND[v.kind] || KIND.op).color; c.fill(); });
@@ -1308,7 +1390,7 @@ function renderProfile(){
     const x = X(profHover); c.strokeStyle = "rgba(228,228,234,.35)"; c.lineWidth = 1; c.beginPath(); c.moveTo(x, Tp); c.lineTo(x, Tp + ph); c.stroke();
     ring(profHover, "#fff", 6);
   }
-  if (selI >= 0) ring(selI, "#5cdcff", 7);
+  if (selI >= 0) ring(selI, BP ? "#fff" : "#5cdcff", 7);
   profGeom = {X, Y, ls, L, pw, n: vs.length};
   // header stats
   const mn = Math.min(...vs.map(v => v.numel)), mx = Math.max(...vs.map(v => v.numel)), pk = vs.find(v => v.numel === mx);
@@ -1496,11 +1578,20 @@ function animate(t){
   needsRender = false;
   updateSweeps(t/1000, $("showk").checked);
   renderer.render(scene, camera);
-  labels.forEach(l => {
+  // labels: project, then greedy collision culling in screen space (pinned / selected / hovered labels claim space first)
+  const placed = [], prio = l => (l.always ? 0 : l.node === sel && sel ? 0 : 1);
+  [...labels].sort((p, q) => prio(p) - prio(q)).forEach(l => {
     v3.copy(l.pos).project(camera);
-    const vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || l.always || camera.position.distanceTo(l.pos) < 70);
+    let vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || l.always || camera.position.distanceTo(l.pos) < 70);
+    const x = (v3.x*0.5+0.5)*innerWidth, y = (-v3.y*0.5+0.5)*innerHeight;
+    if (vis && !l.always){
+      if (!l.w){ l.d.style.display = "block"; l.w = l.d.offsetWidth || 60; l.h = l.d.offsetHeight || 26; }
+      const r = [x - l.w/2 - 3, y - l.h, x + l.w/2 + 3, y];
+      if (placed.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) vis = prio(l) === 0;
+      if (vis) placed.push(r);
+    }
     l.d.style.display = vis ? "block" : "none";
-    if (vis){ l.d.style.left = (v3.x*0.5+0.5)*innerWidth + "px"; l.d.style.top = (-v3.y*0.5+0.5)*innerHeight + "px"; }
+    if (vis){ l.d.style.left = x + "px"; l.d.style.top = y + "px"; }
   });
 }
 
@@ -1534,7 +1625,7 @@ async function loadActs(){
   if (A.error){ setStatus(A.error, true); A = null; return; }
   let txt = "";
   if (A.pred != null){
-    const nm = G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
+    const nm = A.top && A.top[0] ? A.top[0].label : G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
     txt = `→ ${nm} (${(A.prob*100).toFixed(0)}%)`;
   }
   $("pred").textContent = txt;
@@ -1561,6 +1652,17 @@ function renderGallery(imgs){
     const cap = document.createElement("figcaption"); cap.textContent = im.name;
     f.appendChild(c); f.appendChild(cap); el.appendChild(f);
   });
+  // output card: what the model predicts for this input (top-5 classes, or next tokens for language models)
+  if (A && A.top && A.top.length > 1){
+    const f = document.createElement("figure"); f.className = "outcard";
+    const seq = /^token #/.test(A.top[0].label);
+    f.innerHTML = `<div class="oh"><b>${seq ? "Next token" : "Prediction"}</b><span>top ${A.top.length}</span></div>` +
+      A.top.map((t, i) => `<div class="orow${i === 0 ? " top" : ""}" title="${t.label} · ${(t.p*100).toFixed(2)}%">` +
+        `<span class="ol">${t.label}</span><span class="ob"><i style="width:${Math.max(1.5, t.p*100).toFixed(1)}%"></i></span>` +
+        `<span class="op">${t.p >= .995 ? ">99" : t.p < .005 ? "<1" : (t.p*100).toFixed(0)}%</span></div>`).join("") +
+      (A.trained ? "" : `<div class="onote" title="This model has random weights, so its output is noise. Real behaviour needs trained weights.">⚠ Random weights: output is meaningless</div>`);
+    el.appendChild(f);
+  }
 }
 let ctrlTimer = null;
 function renderControls(){
@@ -1575,7 +1677,20 @@ function renderControls(){
     el.appendChild(w);
   });
 }
+function renderScale(){
+  const ts = G0.true_scale, el = $("scale");
+  el.hidden = !ts; if (!ts) return;
+  const gb = b => b >= 1e12 ? (b/1e12).toFixed(2) + " TB" : Math.round(b/1e9) + " GB", big = n => (n/1e9).toFixed(n < 1e10 ? 2 : 1) + " B";
+  const gpus = Math.ceil(ts.bytes_bf16 * 1.2 / 80e9);   // weights + ~20% runtime overhead, on 80 GB accelerators
+  el.innerHTML = `<div class="sh"><b>True scale</b><span>${ts.org}</span></div><div class="sg">
+    <div><span>Parameters</span><b>${big(ts.params)}</b></div>
+    <div><span>Active per token</span><b>${big(ts.active)}</b>${ts.active < ts.params ? `<em>${Math.round(ts.active/ts.params*100)}%</em>` : ""}</div>
+    <div><span>Weights in bf16</span><b>${gb(ts.bytes_bf16)}</b></div>
+    <div><span>80 GB GPUs to serve</span><b>≈ ${gpus}</b></div></div>
+    <div class="sn">${ts.note}</div>`;
+}
 function renderArch(){
+  renderScale(); updateTitleBlock();
   const an = G0.analysis, el = $("arch");
   if (!an){ el.textContent = ""; return; }
   const bn = an.bottleneck ? G0.nodes.find(n => n.name === an.bottleneck) : null;
@@ -1656,6 +1771,7 @@ async function post(url, body){
   if (j.error) throw new Error(j.error);
   return j;
 }
+const LOAD_DETAIL = window.NNVIZ_STATIC ? "Reading the pre-computed graph and activations" : "Reading the cached graph (built and traced only the first time)";
 // ---- loading indicator: nested calls share one chip; the outermost sets the title, inner steps update the detail line ----
 let loadDepth = 0, loadTimer = null;
 function loadOn(title, detail){
@@ -1705,6 +1821,34 @@ document.querySelectorAll("#ctl .tabs button").forEach((b, i, all) => {
 });
 setTab(store.get("tab") || "model");
 if (store.get("closed") === "1") setClosed(true);
+
+// ---- theme: dark (default) / blueprint ----
+function setTheme(t){
+  t = t === "blueprint" ? "blueprint" : "dark";
+  document.documentElement.dataset.theme = t;
+  scene.background = t === "blueprint" ? null : new T.Color(0x000000);
+  renderer.setClearColor(0x000000, t === "blueprint" ? 0 : 1);
+  document.querySelectorAll("#themeseg button").forEach(b => { const on = b.dataset.t === t; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  store.set("theme", t); needsRender = true;
+  if (typeof renderProfile === "function" && G) renderProfile();
+}
+(function sheetZones(){   // A–F down the sides, 1–8 along top and bottom, like a drawing sheet
+  const sh = $("sheet"), mk = (txt, css) => { const z = document.createElement("span"); z.className = "z"; z.textContent = txt; z.style.cssText = css; sh.appendChild(z); };
+  for (let i = 0; i < 8; i++){ const x = `left:${(i + .5)/8*100}%`; mk(i + 1, `${x};top:1px`); mk(i + 1, `${x};bottom:1px`); }
+  "ABCDEF".split("").forEach((c, i) => { const y = `top:calc(${(i + .5)/6*100}% - 6px)`; mk(c, `${y};left:3px`); mk(c, `${y};right:3px`); });
+})();
+function updateTitleBlock(){
+  if (!G0) return;
+  const m = MODELS[G0.model] || {}, an = G0.analysis;
+  $("tb-name").textContent = (G0.name || G0.model || "").replace(/ \(pretrained\)$/, "");
+  $("tb-params").textContent = fmtParams(G0.params).replace(" ", "");
+  $("tb-layers").textContent = G0.nodes.length;
+  $("tb-scale").textContent = G0.true_scale ? "True · log" : "1 : 1 · log";
+  $("tb-arch").textContent = an ? ({hourglass: "Hourglass", funnel: "Funnel", expansion: "Expansion", flat: "Constant width"}[an.kind] || m.group || "—") : (m.group || "—");
+  $("tb-date").textContent = new Date().toISOString().slice(0, 10);
+}
+document.querySelectorAll("#themeseg button").forEach(b => b.onclick = () => setTheme(b.dataset.t));
+setTheme(new URLSearchParams(location.search).get("theme") || store.get("theme") || "dark");
 
 // ---- tutorial ("?" button / ? key) ----
 const HELP = [
@@ -1817,7 +1961,7 @@ function viewAlong(){
   if (qp.get("depth") === "0") $("showdepth").checked = false;
   if (qp.get("labels") === "0") { $("showl").checked = false; $("labels").style.display = "none"; }
   if (qp.get("model") && qp.get("model") !== ms.current && ms.models.some(m => m.id === qp.get("model")))
-    await busy(`Loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`), "Building the network and tracing its graph");
+    await busy(`Loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`), LOAD_DETAIL);
   await withLoading("Loading model", "Fetching the traced graph", loadGraph);
   if (qp.get("focus") && nodeBy[qp.get("focus")]){   // look at one layer from above
     const f = nodeBy[qp.get("focus")], c = Wp(f, new T.Vector3(f.b.ox + f.b.sx/2, 0, f.b.oz + f.b.sz/2));
@@ -1839,7 +1983,7 @@ function viewAlong(){
   sel_.onchange = () => busy(`Loading ${sel_.value}…`, async () => {
     await post(`/api/load?model=${encodeURIComponent(sel_.value)}&pretrained=${$("pre").checked ? 1 : 0}`);
     await loadGraph();
-  }, $("pre").checked ? "Downloading pretrained weights, then tracing the graph" : "Building the network and tracing its graph");
+  }, $("pre").checked ? "Downloading pretrained weights (first time only), then tracing the graph" : LOAD_DETAIL);
   $("pre").onchange = () => { if ($("pre").checked) setStatus("Pretrained weights are downloaded on load (torchvision CNN/ViT only); re-select the model to apply"); };
   $("upbtn").onclick = () => $("file").click();
   $("file").onchange = e => {

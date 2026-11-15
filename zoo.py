@@ -1,5 +1,7 @@
 """Model registry: famous architectures (random init unless pretrained=True) + synthetic inputs."""
 import math
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -114,10 +116,34 @@ class Llama(nn.Module):
 
 
 # ---------------------------------------------------------------- synthetic inputs
+PHOTOS = [("cat", "Photo: cat"), ("coffee", "Photo: coffee cup"), ("astronaut", "Photo: astronaut"), ("rocket", "Photo: rocket launch")]
+_IMNET_MEAN, _IMNET_STD = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1), torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+
+
+def photo(name, size, seed=0):
+    """CC0 / public-domain sample photo (assets/images), ImageNet-normalised. seed > 0: light augmentation."""
+    from PIL import Image
+    import numpy as np
+    im = Image.open(Path(__file__).parent / "assets" / "images" / f"{name}.jpg").convert("RGB").resize((size, size), Image.BILINEAR)
+    x = torch.from_numpy(np.asarray(im).copy()).permute(2, 0, 1).float() / 255
+    if seed:
+        g = torch.Generator().manual_seed(seed)
+        if torch.rand(1, generator=g) < 0.5: x = x.flip(-1)
+        x = (x + 0.04 * torch.randn(x.shape, generator=g)).clamp(0, 1)
+    return ((x - _IMNET_MEAN) / _IMNET_STD).unsqueeze(0)
+
+
+def imagenet_labels():
+    from torchvision.models import ResNet18_Weights
+    return list(ResNet18_Weights.DEFAULT.meta["categories"])
+
+
 def image_input(size=224):
     def make(cls, seed):
         g = torch.Generator().manual_seed(seed)
-        if cls == 1:                                  # noise
+        if cls < len(PHOTOS):
+            return photo(PHOTOS[cls][0], size, seed)
+        if cls == len(PHOTOS) + 1:                    # noise
             return torch.randn(1, 3, size, size, generator=g)
         yy, xx = torch.meshgrid(torch.linspace(-1, 1, size), torch.linspace(-1, 1, size), indexing="ij")
         cx, cy = (torch.rand(2, generator=g) - 0.5) * 0.8
@@ -126,7 +152,7 @@ def image_input(size=224):
         img = torch.stack([disk, stripes * (1 - disk), xx * 0.5 + 0.5])
         img = img + 0.05 * torch.randn(3, size, size, generator=g)
         return ((img - 0.45) / 0.3).unsqueeze(0)       # roughly ImageNet-normalised
-    return make, ["synthetic scene", "noise"]
+    return make, [label for _, label in PHOTOS] + ["Synthetic scene", "Noise"]
 
 
 def token_input(vocab, T=32):
@@ -156,24 +182,25 @@ def _vit(**cfg):
     return build
 
 
-def _entry(group, build, inp, desc, pretrained=False):
+def _entry(group, build, inp, desc, pretrained=False, labels=None):
     make, classes = inp
-    return {"group": group, "build": build, "make_input": make, "classes": classes, "desc": desc, "pretrained": pretrained}
+    return {"group": group, "build": build, "make_input": make, "classes": classes, "desc": desc, "pretrained": pretrained,
+            "labels": labels}
 
 
 REGISTRY = {
     "toy-mixed": {"group": "Toy", "build": lambda pretrained=False: trained_model(), "make_input": toy_input,
                   "classes": TOY_CLASSES, "desc": "Conv + attention toy net trained on line images", "pretrained": False},
-    "resnet18": _entry("CNN", _tv("resnet18"), image_input(), "ResNet-18 · 11.7M params · residual blocks", True),
-    "resnet50": _entry("CNN", _tv("resnet50"), image_input(), "ResNet-50 · 25.6M · bottleneck residual blocks", True),
-    "vgg16": _entry("CNN", _tv("vgg16"), image_input(), "VGG-16 · 138M · plain conv stack + huge MLP head", True),
-    "alexnet": _entry("CNN", _tv("alexnet"), image_input(), "AlexNet · 61M", True),
-    "mobilenet_v3_small": _entry("CNN", _tv("mobilenet_v3_small"), image_input(), "MobileNetV3-Small · 2.5M · depthwise + SE", True),
-    "efficientnet_b0": _entry("CNN", _tv("efficientnet_b0"), image_input(), "EfficientNet-B0 · 5.3M · MBConv", True),
-    "densenet121": _entry("CNN", _tv("densenet121"), image_input(), "DenseNet-121 · 8M · dense concatenation", True),
-    "vit_tiny_16": _entry("Vision Transformer", _vit(num_layers=12, num_heads=3, hidden_dim=192, mlp_dim=768),
+    "resnet18": _entry("CNN", _tv("resnet18"), image_input(), "ResNet-18 · 11.7M params · residual blocks", True, labels=imagenet_labels),
+    "resnet50": _entry("CNN", _tv("resnet50"), image_input(), "ResNet-50 · 25.6M · bottleneck residual blocks", True, labels=imagenet_labels),
+    "vgg16": _entry("CNN", _tv("vgg16"), image_input(), "VGG-16 · 138M · plain conv stack + huge MLP head", True, labels=imagenet_labels),
+    "alexnet": _entry("CNN", _tv("alexnet"), image_input(), "AlexNet · 61M", True, labels=imagenet_labels),
+    "mobilenet_v3_small": _entry("CNN", _tv("mobilenet_v3_small"), image_input(), "MobileNetV3-Small · 2.5M · depthwise + SE", True, labels=imagenet_labels),
+    "efficientnet_b0": _entry("CNN", _tv("efficientnet_b0"), image_input(), "EfficientNet-B0 · 5.3M · MBConv", True, labels=imagenet_labels),
+    "densenet121": _entry("CNN", _tv("densenet121"), image_input(), "DenseNet-121 · 8M · dense concatenation", True, labels=imagenet_labels),
+    "vit_tiny_16": _entry("Vision Transformer", _vit(num_layers=12, num_heads=3, hidden_dim=192, mlp_dim=768, labels=imagenet_labels),
                           image_input(), "ViT-Tiny/16 · 5.7M · 197 tokens"),
-    "vit_b_16": _entry("Vision Transformer", _tv("vit_b_16"), image_input(), "ViT-Base/16 · 86M · 12 layers, 12 heads", True),
+    "vit_b_16": _entry("Vision Transformer", _tv("vit_b_16"), image_input(), "ViT-Base/16 · 86M · 12 layers, 12 heads", True, labels=imagenet_labels),
     "gpt2-small": _entry("LLM", lambda pretrained=False: GPT().eval(), token_input(50257),
                          "GPT-2 small architecture · 124M · 12 layers, 12 heads, T=32 (random weights)"),
     "gpt2-tiny": _entry("LLM", lambda pretrained=False: GPT(vocab=2048, d=128, layers=4, heads=4).eval(), token_input(2048),
@@ -184,9 +211,11 @@ REGISTRY = {
 
 # more architectures + model cards (imported last: they use helpers defined above)
 from zoo_extra import EXTRA          # noqa: E402
+from zoo_llm import LLMS             # noqa: E402
 from modelinfo import INFO           # noqa: E402
 
 REGISTRY.update(EXTRA)
+REGISTRY.update(LLMS)
 for _k, _v in INFO.items():
     if _k in REGISTRY:
         REGISTRY[_k]["info"] = _v
