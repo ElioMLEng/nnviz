@@ -7,6 +7,8 @@ with live activations for a chosen input.
 ![status](https://img.shields.io/badge/runs-locally-blue)
 
 ## Features
+- **Built-in tutorial**: the **?** button (or the `?` key) opens an 8-step guide covering navigation, models, inspection, layouts, display options, importing your own model and shortcuts. `?help=1` in the URL opens it directly.
+- **Tabbed control panel** (Model / View / Display) that remembers its tab and collapsed state; `?tab=view` selects a tab from the URL.
 - **Model zoo**: ResNet-18/50, VGG-16, AlexNet, MobileNetV3, EfficientNet-B0, DenseNet-121, ViT-B/16, ViT-Tiny, GPT-2 (small/tiny),
   Llama-style, GPT-OSS-style (MoE + GQA + sliding window), U-Net, VAE, DCGAN (G/D), DDPM U-Net. Random weights unless
   *pretrained* is ticked (torchvision models; needs internet).

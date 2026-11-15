@@ -95,6 +95,50 @@
   #profile{pointer-events:auto;width:100%;max-width:640px;height:64px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer}
   #legend .mbar{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
   #legend .mbar i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
+  /* ---- control panel v2: header, tabs, groups ---- */
+  #ctl header{align-items:center;padding:9px 10px 0 13px}
+  #ctl .ver{font-size:10px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:2px}
+  #ctl .hbtn{width:26px;height:26px;padding:0 !important;display:grid;place-items:center;border-radius:50% !important;font-weight:700;font-size:13px;line-height:1}
+  #ctl #helpbtn{color:var(--acc);border-color:#2b6a86 !important}
+  #ctl #helpbtn.pulse{animation:pulse 1.8s ease-out 3}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(92,220,255,.55)}100%{box-shadow:0 0 0 10px rgba(92,220,255,0)}}
+  #ctl .tabs{display:flex;gap:2px;margin:9px 10px 0;padding:3px;background:#0e0e13;border:1px solid var(--line);border-radius:8px}
+  #ctl .tabs button{flex:1;border:0 !important;background:transparent;color:var(--mut);padding:5px 0;font-size:12px;border-radius:6px !important;transition:background .15s,color .15s}
+  #ctl .tabs button:hover{color:var(--fg);background:#16161d}
+  #ctl .tabs button[aria-selected=true]{background:#1a2a34;color:var(--acc)}
+  #ctl.closed .tabs{display:none}
+  #ctl .pane{display:none} #ctl .pane.on{display:block;animation:fade .15s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
+  #ctl .sec:first-child{margin-top:4px}
+  #ctl .grp{font-size:11px;color:var(--mut);margin:8px 0 4px}
+  #ctl :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+  #ctl #status{border-top:1px solid var(--line);padding-top:7px}
+  kbd{font:11px ui-monospace,Consolas,monospace;background:#1b1b23;border:1px solid #33333f;border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--fg)}
+  /* ---- tutorial ---- */
+  #help{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);padding:16px}
+  #help[hidden]{display:none}
+  #help .hc{width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#0d0d12;border:1px solid #2a2a35;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:fade .18s ease-out}
+  #help .hh{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+  #help .step{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+  #help .hh .sp{flex:1}
+  #help .x{background:none;border:0;color:var(--mut);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}
+  #help .x:hover{color:var(--fg);background:#1b1b23}
+  #help h2{margin:6px 16px 0;font-size:19px;color:#fff}
+  #help .hb{padding:6px 16px 4px;overflow:auto;line-height:1.55;color:#c9c9d3}
+  #help .hb ul{padding-left:18px;margin:6px 0} #help .hb li{margin:3px 0}
+  #help .hb b{color:var(--fg)} #help .hb code{font:12px ui-monospace,Consolas,monospace;color:#9fe;background:#10241f;border-radius:4px;padding:0 4px}
+  #help .hb table{border-collapse:collapse;width:100%} #help .hb td{padding:5px 4px;border-bottom:1px solid #1c1c24}
+  #help .hb td:first-child{width:130px;white-space:nowrap}
+  #help .hf{display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:1px solid #1c1c24;margin-top:8px}
+  #help .dots{display:flex;gap:5px;flex:1}
+  #help .dots button{width:8px;height:8px;padding:0;border-radius:50%;border:0;background:#33333f;cursor:pointer}
+  #help .dots button.on{background:var(--acc);width:20px;border-radius:4px}
+  #help .hf .b{background:#16161d;color:var(--fg);border:1px solid #30303a;border-radius:7px;padding:6px 14px;font:inherit;cursor:pointer}
+  #help .hf .b:hover{background:#1d1d27;border-color:#4a4a58}
+  #help .hf .b.pri{background:#1a3a4a;border-color:#2b6a86;color:#fff}
+  #help .hf .b.pri:hover{background:#21495c}
+  #help .hf .b:disabled{opacity:.35;cursor:default}
+  #help :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
   #panel button.act{margin:8px 0;background:#16161d;color:#e4e4ea;border:1px solid #30303a;border-radius:6px;padding:5px 10px;cursor:pointer}
 </style>
 </head>
@@ -105,9 +149,16 @@
   <section id="ctl">
     <header>
       <span class="brand">nnviz</span><span class="sub3d">3D</span><span class="sp"></span>
-      <button id="collapse" title="collapse / expand controls" style="padding:1px 8px">▾</button>
+      <button id="helpbtn" class="hbtn" title="tutorial and shortcuts (?)" aria-label="open tutorial">?</button>
+      <button id="collapse" class="hbtn" title="collapse / expand controls" aria-label="collapse controls" aria-expanded="true">▾</button>
     </header>
+    <nav class="tabs" role="tablist" aria-label="control groups">
+      <button role="tab" data-tab="model" aria-selected="true">Model</button>
+      <button role="tab" data-tab="view" aria-selected="false">View</button>
+      <button role="tab" data-tab="display" aria-selected="false">Display</button>
+    </nav>
     <div class="body">
+      <div class="pane on" data-pane="model" role="tabpanel">
       <div class="sec">Model</div>
       <div class="row">
         <select id="model" class="grow"></select>
@@ -128,8 +179,10 @@
       <div class="row"><select id="cls" class="grow"></select><button id="resample">new noise</button></div>
       <div class="row"><span id="pred"></span></div>
       <div id="ctrls"></div>
+      </div>
 
-      <div class="sec">View</div>
+      <div class="pane" data-pane="view" role="tabpanel">
+      <div class="sec">Layout</div>
       <div class="row">
         <div class="seg" id="layoutseg">
           <button data-v="line">line</button><button data-v="snake">folded grid</button><button data-v="spiral">spiral</button>
@@ -141,29 +194,44 @@
         <button id="along" class="grow" title="camera behind the input, looking along the data flow">look along flow</button>
       </div>
 
-      <div class="sec">Show</div>
-      <div class="chips">
-        <label class="chip"><input type="checkbox" id="showact" checked>activations</label>
-        <label class="chip"><input type="checkbox" id="showw" checked>weights</label>
-        <label class="chip"><input type="checkbox" id="showk" checked>kernel animation</label>
-        <label class="chip"><input type="checkbox" id="showl" checked>labels</label>
-        <label class="chip" title="translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>size envelope</label>
-        <label class="chip" id="depthchip" title="line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>show depth <small style="opacity:.55;margin-left:3px">line view only</small></label>
-        <label class="chip" title="animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>fold animation</label>
-        <label class="chip" title="coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>block floors</label>
-        <label class="chip" title="fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">collapse blocks</label>
-        <label class="chip" title="fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>easy rendering</label>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button id="collapseall" class="grow" title="fold every repeated block into a single node">collapse all blocks</button>
-        <button id="expandall" class="grow" title="show every layer inside every block">expand all blocks</button>
-      </div>
-      <div class="row metricrow"><label for="metric">colour layers by</label>
+      <div class="sec">Colour</div>
+      <div class="row"><label for="metric" style="color:var(--mut);font-size:12px;white-space:nowrap">colour layers by</label>
         <select id="metric" class="grow"><option value="type">layer type</option><option value="params">parameters</option>
           <option value="flops">FLOPs (approx.)</option><option value="size">activation size</option>
           <option value="sparsity">sparsity (zeros)</option><option value="mean_abs">mean |activation|</option>
           <option value="residual">residual change ‖F(x)‖/‖x‖</option></select></div>
-      <div id="status"></div>
+
+      <div class="sec">Blocks</div>
+      <div class="row">
+        <button id="collapseall" class="grow" title="fold every repeated block into a single node">collapse all</button>
+        <button id="expandall" class="grow" title="show every layer inside every block">expand all</button>
+      </div>
+      <div class="chips" style="margin-top:6px">
+        <label class="chip" title="fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">collapse blocks</label>
+        <label class="chip" title="animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>fold animation</label>
+        <label class="chip" title="coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>block floors</label>
+      </div>
+      </div>
+
+      <div class="pane" data-pane="display" role="tabpanel">
+      <div class="sec">Data</div>
+      <div class="chips">
+        <label class="chip" title="live activation volumes for the current input"><input type="checkbox" id="showact" checked>activations</label>
+        <label class="chip" title="weight lines / kernels between layers"><input type="checkbox" id="showw" checked>weights</label>
+        <label class="chip" title="sliding conv kernels and sweeps"><input type="checkbox" id="showk" checked>kernel animation</label>
+        <label class="chip" title="layer names and shapes"><input type="checkbox" id="showl" checked>labels</label>
+      </div>
+      <div class="sec">Structure</div>
+      <div class="chips">
+        <label class="chip" title="translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>size envelope</label>
+        <label class="chip" id="depthchip" title="line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>show depth <small style="opacity:.55;margin-left:3px">line view only</small></label>
+      </div>
+      <div class="sec">Performance</div>
+      <div class="chips">
+        <label class="chip" title="fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>easy rendering</label>
+      </div>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
     </div>
   </section>
 </div>
@@ -172,7 +240,19 @@
 <div id="card"></div>
 <div id="legend"></div>
 <div id="panel"></div>
-<div id="hint">drag: orbit · right-drag: pan · wheel: zoom · click a layer</div>
+<div id="hint">drag: orbit · right-drag: pan · wheel: zoom · click a layer · <kbd>?</kbd> help</div>
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="htitle" hidden>
+  <div class="hc">
+    <div class="hh"><span class="step" id="hstep"></span><span class="sp"></span><button class="x" id="hclose" aria-label="close tutorial" title="close (Esc)">×</button></div>
+    <h2 id="htitle"></h2>
+    <div class="hb" id="hbody"></div>
+    <div class="hf">
+      <div class="dots" id="hdots"></div>
+      <button class="b" id="hprev">Back</button>
+      <button class="b pri" id="hnext">Next</button>
+    </div>
+  </div>
+</div>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/OrbitControls.js"></script>
 <script src="info.js"></script>
@@ -1408,12 +1488,121 @@ async function post(url, body){
   return j;
 }
 async function busy(msg, fn){
-  document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = true);
+  document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = true);
   setStatus(msg);
   try { await fn(); } catch (e) { setStatus(String(e.message || e), true); }
-  finally { document.querySelectorAll("#ctl select, #ctl button, #ctl input").forEach(e => e.disabled = false); updateBlockButtons();
+  finally { document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = false); updateBlockButtons();
     if ($("upbtn").dataset.locked) $("upbtn").disabled = true; }
 }
+
+// ---- control panel: tabs + collapse (remembered per browser) ----
+const store = { get(k){ try { return localStorage.getItem("nnviz." + k); } catch (e) { return null; } },
+                set(k, v){ try { localStorage.setItem("nnviz." + k, v); } catch (e) {} } };
+function setTab(t){
+  const tabs = [...document.querySelectorAll("#ctl .tabs button")];
+  if (!tabs.some(b => b.dataset.tab === t)) t = "model";
+  tabs.forEach(b => { const on = b.dataset.tab === t; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; });
+  document.querySelectorAll("#ctl .pane").forEach(p => p.classList.toggle("on", p.dataset.pane === t));
+  if ($("ctl").classList.contains("closed")) setClosed(false);
+  store.set("tab", t);
+}
+function setClosed(c){
+  $("ctl").classList.toggle("closed", c);
+  $("collapse").textContent = c ? "▸" : "▾"; $("collapse").setAttribute("aria-expanded", !c);
+  store.set("closed", c ? "1" : "0");
+}
+document.querySelectorAll("#ctl .tabs button").forEach((b, i, all) => {
+  b.onclick = () => setTab(b.dataset.tab);
+  b.onkeydown = e => {   // arrow keys move between tabs (WAI-ARIA tabs pattern)
+    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (!d) return;
+    const n = all[(i + d + all.length) % all.length]; setTab(n.dataset.tab); n.focus(); e.preventDefault();
+  };
+});
+setTab(store.get("tab") || "model");
+if (store.get("closed") === "1") setClosed(true);
+
+// ---- tutorial ("?" button / ? key) ----
+const HELP = [
+  ["Welcome to nnviz", `nnviz traces a PyTorch model and draws it in 3D: every <b>tensor is a volume</b>, every <b>layer is the operation</b>
+    acting on it (sliding conv kernels, activation gates, attention maps, MoE routers…), with <b>live activations</b> for the input you choose.
+    <ul><li>The panel top-left has three tabs: <b>Model</b>, <b>View</b>, <b>Display</b>.</li>
+    <li>The layer inspector opens on the right when you click a layer.</li>
+    <li>The legend (bottom-left) explains the colours.</li></ul>
+    Reopen this guide any time with the <kbd>?</kbd> button or key.`],
+  ["Move around", `<table>
+    <tr><td>Left-drag</td><td>orbit around the model</td></tr>
+    <tr><td>Right-drag</td><td>pan</td></tr>
+    <tr><td>Mouse wheel</td><td>zoom</td></tr>
+    <tr><td><kbd>F</kbd> / <b>fit view</b></td><td>frame the whole model</td></tr>
+    <tr><td><b>look along flow</b></td><td>put the camera behind the input, looking down the data path</td></tr></table>`],
+  ["Pick a model and an input", `In the <b>Model</b> tab:
+    <ul><li><b>Model list</b>: grouped zoo (CNNs, Transformers, generative…). The number after each name is its parameter count.</li>
+    <li><b>pretrained weights</b>: download real torchvision weights on load (needs internet); otherwise weights are random.</li>
+    <li><b>info</b> (<kbd>I</kbd>): the model card: what it is known for, what it introduced, what to look for.</li>
+    <li><b>Input</b>: choose a class / sample or draw <b>new noise</b>. The green pill shows the prediction. Some models add sliders here
+    (DDPM timestep, GAN latent interpolation).</li></ul>`],
+  ["Inspect a layer", `<b>Click any layer</b> to open the inspector on the right: plain-language description, input/output shapes,
+    parameters, FLOPs, kernels or weight matrices, attention maps, router gates.
+    <ul><li>Its <b>skip connections</b> light up green and the layer at the other end is outlined.</li>
+    <li>The <b>profile strip</b> at the bottom plots tensor size along the main path; click it to jump to that layer.</li></ul>`],
+  ["Arrange and colour", `In the <b>View</b> tab:
+    <ul><li><b>Layout</b>: <i>line</i>, <i>folded grid</i> (compact for deep nets) or <i>spiral</i>.</li>
+    <li><b>Colour layers by</b>: type, parameters, FLOPs, activation size, sparsity, mean |activation| or residual change.
+    The legend shows the scale.</li>
+    <li><b>Blocks</b>: fold repeated blocks (ResNet stages, Transformer layers) into single nodes. <b>Double-click</b> a block to open it.</li></ul>`],
+  ["Tune the display", `In the <b>Display</b> tab, toggle what is drawn:
+    <ul><li><b>Data</b>: activations, weights, kernel animation, labels.</li>
+    <li><b>Structure</b>: <i>size envelope</i> (tube following tensor size) and <i>show depth</i> (line view: layers drop with each
+    downsampling, so a U-Net draws a U).</li>
+    <li><b>Performance</b>: keep <i>easy rendering</i> on for laptops or large models; turn it off for full quality.</li></ul>`],
+  ["Bring your own model", `<b>Model › import…</b> accepts:
+    <ul><li>a <code>.py</code> file defining <code>build()</code> that returns an <code>nn.Module</code>, optionally
+    <code>example_input()</code> and <code>CLASSES</code>. See <code>examples/my_model.py</code>.</li>
+    <li>a whole pickled module <code>.pt</code>/<code>.pth</code>. Give its input under <b>import options</b>, for example
+    <code>1,3,224,224</code> or <code>int:1,32:50257</code> for token ids.</li></ul>
+    Plain state_dicts don't work: wrap them in a <code>.py</code> with <code>build()</code>.`],
+  ["Keyboard shortcuts", `<table>
+    <tr><td><kbd>?</kbd></td><td>open this guide</td></tr>
+    <tr><td><kbd>F</kbd></td><td>fit view</td></tr>
+    <tr><td><kbd>I</kbd></td><td>toggle the model card</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>previous / next step here; switch tabs when a tab is focused</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>close this guide</td></tr></table>
+    <p style="color:var(--mut);margin-top:10px">Tip: the panel remembers its tab and collapsed state.</p>`],
+];
+let hIdx = 0, hReturn = null;
+HELP.forEach((_, i) => { const d = document.createElement("button"); d.setAttribute("aria-label", `step ${i + 1}`); d.onclick = () => helpGo(i); $("hdots").appendChild(d); });
+function helpGo(i){
+  hIdx = Math.max(0, Math.min(HELP.length - 1, i));
+  $("hstep").textContent = `Step ${hIdx + 1} of ${HELP.length}`;
+  $("htitle").textContent = HELP[hIdx][0]; $("hbody").innerHTML = HELP[hIdx][1]; $("hbody").scrollTop = 0;
+  [...$("hdots").children].forEach((d, j) => d.classList.toggle("on", j === hIdx));
+  $("hprev").disabled = hIdx === 0;
+  $("hnext").textContent = hIdx === HELP.length - 1 ? "Done" : "Next";
+}
+function helpOpen(i = 0){ hReturn = document.activeElement; $("help").hidden = false; helpGo(i); $("hnext").focus();
+  $("helpbtn").classList.remove("pulse"); store.set("seenHelp", "1"); }
+function helpClose(){ $("help").hidden = true; if (hReturn && hReturn.focus) hReturn.focus(); }
+$("helpbtn").onclick = () => helpOpen(0);
+$("hclose").onclick = helpClose;
+$("hprev").onclick = () => helpGo(hIdx - 1);
+$("hnext").onclick = () => hIdx === HELP.length - 1 ? helpClose() : helpGo(hIdx + 1);
+$("help").addEventListener("mousedown", e => { if (e.target === $("help")) helpClose(); });
+addEventListener("keydown", e => {
+  const open = !$("help").hidden;
+  if (open){
+    if (e.key === "Escape") helpClose();
+    else if (e.key === "ArrowRight") helpGo(hIdx + 1);
+    else if (e.key === "ArrowLeft") helpGo(hIdx - 1);
+    else if (e.key === "Tab"){   // keep focus inside the dialog
+      const f = [...$("help").querySelectorAll("button:not(:disabled)")], a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a){ z.focus(); e.preventDefault(); }
+      else if (!e.shiftKey && document.activeElement === z){ a.focus(); e.preventDefault(); }
+    }
+    e.stopImmediatePropagation(); return;
+  }
+  if (e.key === "?" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){ helpOpen(0); e.preventDefault(); }
+}, true);
+if (!store.get("seenHelp")) $("helpbtn").classList.add("pulse");
 
 function viewAlong(){
   const n0 = G.nodes.find(n => n.kind === "input") || G.nodes[0], p = n0.pose;
@@ -1453,6 +1642,8 @@ function viewAlong(){
   if (qp.get("along")) viewAlong();
   if (qp.get("select") && nodeBy[qp.get("select")]){ sel = nodeBy[qp.get("select")]; showPanel(); refreshSweeps(); }
   if (qp.get("card") === "0") setCard(false);
+  if (qp.get("help")) helpOpen(Math.max(0, (parseInt(qp.get("help")) || 1) - 1));   // ?help=1 opens the tutorial (?help=3: step 3)
+  if (qp.get("tab")) setTab(qp.get("tab"));
   if (qp.get("cam")){   // x,y,z,tx,ty,tz in world units
     const v = qp.get("cam").split(",").map(Number);
     camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update();
@@ -1482,7 +1673,7 @@ function viewAlong(){
   $("expandall").onclick = () => transition(() => { $("grpblocks").checked = false; expanded.clear(); }, true);
   document.querySelectorAll("#layoutseg button").forEach(b => b.onclick = () => {
     $("layout").value = b.dataset.v; $("layout").dispatchEvent(new Event("change")); });
-  $("collapse").onclick = () => { const c = $("ctl").classList.toggle("closed"); $("collapse").textContent = c ? "▸" : "▾"; };
+  $("collapse").onclick = () => setClosed(!$("ctl").classList.contains("closed"));
   addEventListener("resize", fitLeft);
   $("showl").onchange = e => { $("labels").style.display = e.target.checked ? "" : "none"; };
   $("cls").onchange = loadActs;
