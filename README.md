@@ -2,6 +2,8 @@
 
 Explore neural networks in 3D, from a toy CNN to Llama 3.1 405B, with a built-in course (**Explain NNs**) and tutorial (**?**).
 
+**Live: https://eliomleng.github.io/nnviz/** (nothing to install)
+
 ## Quick start (no install)
 
 ```bash
