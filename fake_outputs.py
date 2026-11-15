@@ -72,7 +72,7 @@ def ddpm_images(x, meta):
         return {}
     eps, x0, ab = meta["eps"], meta["x0"], meta["ab"]
     pred = 0.85 * eps + 0.15 * _blur(eps, 3)      # a good denoiser predicts the true noise closely
-    est = ((x[0] - (1 - ab) ** 0.5 * pred) / ab ** 0.5).clamp(-1.5, 1.5)
+    est = (0.95 * x0 + 0.06 * _blur(eps, 3)).clamp(-1.5, 1.5)   # a good model recovers the clean image closely
     return {"Output": pred, "Predicted noise ε̂": pred, "x₀ estimate from ε̂": est}
 
 

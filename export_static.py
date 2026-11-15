@@ -62,7 +62,8 @@ def copy_ui():
 def main():
     if "--ui-only" in sys.argv:   # UI changed, data didn't: no server needed
         copy_ui(); print(f"UI refreshed in {OUT}"); return
-    if OUT.exists():
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--only=")), None)
+    if OUT.exists() and not only:      # --only=a,b: re-export just those models into the existing site
         shutil.rmtree(OUT)
     copy_ui()
 
@@ -71,6 +72,9 @@ def main():
     total, done = 0, []
     pre = {m["id"]: m.get("pretrained") for m in ms["models"]}
     for mid in ids:
+        if only and mid not in only:
+            if (OUT / "data" / mid / "graph.js").exists(): done.append(mid)
+            continue
         t = time.time()
         try:   # torchvision classifiers: real ImageNet weights, so the output card shows meaningful predictions
             call(f"/api/load?model={mid}&pretrained={1 if pre.get(mid) else 0}", "POST")

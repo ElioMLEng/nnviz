@@ -1,0 +1,2061 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nnviz 3D</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#ddd;font:13px system-ui,Segoe UI,sans-serif;overflow:hidden}
+  #gl{position:fixed;inset:0}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lb{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;text-shadow:0 0 4px #000,0 0 4px #000}
+  .lb b{font-size:13px}.lb span{display:block;font-size:11px;color:#888}
+  .lb.sel b{text-decoration:underline}
+  .lb.rl{transform:translate(-100%,-50%);text-align:right}
+  .lb.rl span{display:inline;margin-left:8px}
+  :root{--bg:#0b0b0fe6;--line:#23232b;--mut:#8a8a96;--fg:#e4e4ea;--acc:#5cdcff;--ctl:#16161d}
+  #left{position:fixed;left:12px;top:12px;width:372px;display:flex;flex-direction:column;gap:8px;
+        max-height:calc(100vh - 24px - var(--legend-h, 190px) - 8px);pointer-events:none}
+  #left > section{pointer-events:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+  #ctl header{display:flex;align-items:baseline;gap:6px;padding:8px 10px 0 12px}
+  #ctl .brand{font-weight:700;letter-spacing:.02em;color:var(--fg)} #ctl .sub3d{color:var(--acc);font-weight:700}
+  #ctl header .sp{flex:1}
+  #ctl{overflow:auto;min-height:0}
+  #ctl .body{padding:6px 12px 10px}
+  #ctl.closed .body{display:none}
+  #ctl .sec{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);margin:10px 0 5px;display:flex;align-items:center;gap:8px}
+  #ctl .sec::after{content:"";flex:1;height:1px;background:var(--line)}
+  #ctl .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+  #ctl .grow{flex:1;min-width:0}
+  #ctl select,#ctl button,#ctl input[type=text],#ctl input:not([type]){background:var(--ctl);color:var(--fg);border:1px solid #30303a;border-radius:6px;padding:5px 8px;font:inherit}
+  #ctl button{cursor:pointer} #ctl button:hover:not(:disabled){border-color:#4a4a58;background:#1d1d27}
+  #ctl button.icon{padding:5px 9px} #ctl button:disabled,#ctl select:disabled{opacity:.5}
+  #ctl details{margin:4px 0;color:var(--mut)} #ctl details summary{cursor:pointer;font-size:12px}
+  #ctl details input{width:100%;box-sizing:border-box;margin-top:5px}
+  .seg{display:flex;flex:1;border:1px solid #30303a;border-radius:6px;overflow:hidden}
+  .seg button{flex:1;border:0 !important;border-radius:0 !important;background:var(--ctl)}
+  .seg button + button{border-left:1px solid #30303a !important}
+  .seg button.on{background:#20384a !important;color:var(--acc)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:flex;align-items:center;gap:5px;border:1px solid #30303a;border-radius:999px;padding:3px 10px;background:var(--ctl);cursor:pointer;user-select:none;font-size:12px}
+  .chip input{display:none}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid #666}
+  .chip:has(input:checked){border-color:#2b6a86;background:#14222b;color:var(--acc)}
+  .chip:has(input:checked)::before{background:var(--acc);border-color:var(--acc)}
+  #pred{display:inline-block;color:#9fe;background:#10241f;border:1px solid #1f4a3f;border-radius:999px;padding:2px 10px;font-size:12px}
+  #pred:empty{display:none}
+  #status{margin-top:8px;font-size:11px;line-height:1.35;color:var(--mut);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #legend{position:fixed;left:12px;bottom:12px;width:372px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+          padding:6px 10px 8px;backdrop-filter:blur(6px)}
+  #legend .lh{display:flex;align-items:center;cursor:pointer;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);padding:2px 0 4px}
+  #legend .lh span{flex:1}
+  #legend.closed .items,#legend.closed .foot{display:none}
+  #legend .it{display:flex;align-items:center;gap:8px;height:21px;white-space:nowrap}
+  #legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+  #legend .nm{width:118px;flex:none;color:var(--fg)}
+  #legend .ds{color:var(--mut);font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+  #legend .foot{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;display:flex;gap:12px;flex-wrap:wrap}
+  #panel{position:fixed;right:12px;top:96px;bottom:12px;width:320px;background:#0b0b0fe6;border:1px solid #222;border-radius:8px;padding:12px;overflow:auto;display:none}
+  #panel h2{margin:0 0 4px;font-size:16px}
+  #panel .k{color:#888}
+  #panel table{border-collapse:collapse;width:100%;margin:8px 0}
+  #panel td{padding:2px 4px;border-bottom:1px solid #1c1c22}
+  #panel canvas{display:inline-block;margin:1px;border:1px solid #222}
+  #hint{position:fixed;right:12px;bottom:12px;color:#666}
+  #card{position:fixed;left:396px;top:12px;width:400px;max-width:calc(100vw - 396px - 344px);max-height:calc(100vh - 24px);
+        overflow:auto;padding:10px 14px 12px;display:none;line-height:1.45;background:var(--bg);border:1px solid var(--line);
+        border-radius:10px;backdrop-filter:blur(6px);box-sizing:border-box}
+  #left > section, #legend{box-sizing:border-box}
+  #card h3{margin:0;font-size:15px}
+  #card .sub{color:#888;font-size:12px;margin:2px 0 6px}
+  #card .tag{color:#9fe;margin:4px 0 6px}
+  #card h4{margin:8px 0 2px;font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:.04em}
+  #card ul{margin:0;padding-left:18px} #card li{margin:2px 0}
+  #card .x{position:absolute;right:8px;top:6px;cursor:pointer;color:#888}
+  #panel .desc{margin:8px 0;padding:8px;background:#12121a;border-radius:6px;line-height:1.45}
+  #panel .desc p{margin:6px 0} #panel .desc .dt{font-weight:600;color:#e0e0e0}
+  #title{position:fixed;right:18px;top:12px;text-align:right;pointer-events:none;max-width:42vw}
+  #title .nm{font-size:30px;font-weight:800;letter-spacing:-0.01em;line-height:1.1;color:#fff;
+             text-shadow:0 0 22px rgba(92,220,255,.35),0 2px 0 rgba(0,0,0,.6)}
+  #title .nm i{font-style:normal;font-weight:300;opacity:.75}
+  #title .sb{margin-top:5px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ad}
+  #title .ln{height:2px;margin:7px 0 0 auto;width:64px;border-radius:2px;background:linear-gradient(90deg,transparent,#5cdcff)}
+  #scale{margin:8px 0 4px;padding:9px 11px;border:1px solid #2b6a86;border-radius:9px;background:linear-gradient(160deg,#0f2230,#0d1420)}
+  #scale[hidden]{display:none}
+  #scale .sh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  #scale .sh b{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc)} #scale .sh span{font-size:11px;color:var(--mut)}
+  #scale .sg{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+  #scale .sg div{display:flex;flex-direction:column}
+  #scale .sg span{font-size:10.5px;color:var(--mut)} #scale .sg b{font-size:17px;color:#fff;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  #scale .sg em{font-style:normal;font-size:10.5px;color:#66bb6a}
+  #scale .sn{margin-top:7px;font-size:10.5px;line-height:1.4;color:var(--mut)}
+  #arch{font-size:11.5px;color:var(--mut);margin:2px 2px 4px;line-height:1.35}
+  #arch b{color:#ffd54f;font-weight:600}
+  #ctrls .ct{margin:6px 0 2px;font-size:12px;color:var(--mut)}
+  #ctrls .ct span{color:var(--fg);float:right}
+  #ctrls input[type=range]{width:100%;accent-color:#5cdcff}
+  #ctl .metricrow{margin-top:8px} #ctl .metricrow label{color:var(--mut);font-size:12px;white-space:nowrap}
+  #bottom{position:fixed;left:396px;right:344px;bottom:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
+  #gallery{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}
+  #gallery:empty{display:none}
+  #gallery figure{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 5px 3px;text-align:center}
+  #gallery canvas{width:96px;height:96px;image-rendering:pixelated;display:block;border-radius:4px;background:#000}
+  #gallery figcaption{font-size:10.5px;color:var(--mut);margin-top:3px;max-width:96px;line-height:1.2}
+  #gallery figure.outcard{width:230px;text-align:left;padding:8px 10px 7px;display:flex;flex-direction:column;gap:4px;box-sizing:border-box}
+  .outcard .oh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
+  .outcard .oh b{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg)} .outcard .oh span{font-size:10.5px;color:var(--mut)}
+  .outcard .orow{display:grid;grid-template-columns:96px 1fr 30px;align-items:center;gap:6px;font-size:11.5px;color:var(--mut)}
+  .outcard .ol{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .outcard .ob{height:6px;background:#1c1c26;border-radius:3px;overflow:hidden} .outcard .ob i{display:block;height:100%;background:#3d6f86;border-radius:3px}
+  .outcard .op{text-align:right;font-variant-numeric:tabular-nums}
+  .outcard .orow.top{color:#fff;font-weight:600} .outcard .orow.top .ob i{background:var(--acc)} .outcard .orow.top .op{color:var(--acc)}
+  .outcard .onote{margin-top:3px;font-size:10.5px;color:#ffb74d}
+  .outcard .onote.il{color:var(--mut);font-style:italic}
+  #gallery figcaption .il{display:block;font-style:italic;opacity:.75}
+  #profcard{pointer-events:auto;position:relative;width:100%;max-width:680px;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);padding:8px 10px 6px}
+  #profcard[hidden]{display:none}
+  #profcard .ph{display:flex;align-items:baseline;gap:8px;margin:0 2px 2px;min-width:0}
+  #profcard .pt{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg);font-weight:600;white-space:nowrap}
+  #profcard .ps{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #profcard .sp{flex:1}
+  #pstat{font-size:11px;color:var(--mut);white-space:nowrap} #pstat b{color:var(--fg);font-weight:600}
+  #pstat .bn{color:#ffd54f}
+  #profile{display:block;width:100%;height:118px;cursor:crosshair}
+  #ptip{position:absolute;pointer-events:none;z-index:2;background:#0d0d12f2;border:1px solid #2a2a35;border-radius:8px;padding:6px 9px;font-size:11.5px;line-height:1.45;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);transform:translate(-50%,-100%)}
+  #ptip[hidden]{display:none}
+  #ptip b{color:#fff} #ptip .k{color:var(--mut)} #ptip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+  #legend .mbar{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
+  #legend .mbar i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
+
+  /* =================== blueprint theme (opt-in: Display › Theme) =================== */
+  :root[data-theme=blueprint]{--bg:rgba(10,44,84,.86);--line:rgba(220,236,255,.38);--mut:#a9c4e2;--fg:#f2f8ff;--acc:#ffffff;--ctl:rgba(255,255,255,.05);
+    --bp:#0e3a6b;--bp-hi:#16508f;--bp-ink:#eaf4ff;--bp-font:Bahnschrift,"DIN Alternate","Arial Narrow",system-ui,sans-serif}
+  :root[data-theme=blueprint] body{background:radial-gradient(ellipse at 50% 40%,var(--bp-hi) 0%,var(--bp) 55%,#0a2a50 100%);font-family:var(--bp-font)}
+  :root[data-theme=blueprint] #gl{background-image:
+      linear-gradient(rgba(234,244,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(234,244,255,.16) 1px,transparent 1px),
+      linear-gradient(rgba(234,244,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(234,244,255,.06) 1px,transparent 1px);
+    background-size:100px 100px,100px 100px,20px 20px,20px 20px;background-position:-1px -1px}
+  :root[data-theme=blueprint] #gl canvas{filter:grayscale(1) brightness(1.55) contrast(1.05);mix-blend-mode:screen}
+  :root[data-theme=blueprint] .lb{color:var(--bp-ink);text-shadow:0 0 3px #0e3a6b,0 0 6px #0e3a6b;font-family:var(--bp-font)}
+  :root[data-theme=blueprint] .lb b{color:#fff !important;letter-spacing:.04em} :root[data-theme=blueprint] .lb span{color:#bcd6f2}
+  :root[data-theme=blueprint] #left > section,:root[data-theme=blueprint] #legend,:root[data-theme=blueprint] #panel,:root[data-theme=blueprint] #card,
+  :root[data-theme=blueprint] #profcard,:root[data-theme=blueprint] #gallery figure,:root[data-theme=blueprint] #loading{
+    background:var(--bg);border:1px solid var(--line);border-radius:2px;box-shadow:none}
+  :root[data-theme=blueprint] #ctl .sec,:root[data-theme=blueprint] #legend .lh,:root[data-theme=blueprint] #profcard .pt{color:var(--bp-ink);letter-spacing:.16em}
+  :root[data-theme=blueprint] #ctl .sec::after{background:var(--line)}
+  :root[data-theme=blueprint] #ctl select,:root[data-theme=blueprint] #ctl button,:root[data-theme=blueprint] #ctl input:not([type]),
+  :root[data-theme=blueprint] .chip,:root[data-theme=blueprint] .seg{border-color:rgba(234,244,255,.35) !important;border-radius:2px !important;background:transparent;color:var(--fg)}
+  :root[data-theme=blueprint] #ctl select option{background:#0e3a6b}
+  :root[data-theme=blueprint] #ctl button:hover:not(:disabled){background:rgba(255,255,255,.1)}
+  :root[data-theme=blueprint] .chip:has(input:checked),:root[data-theme=blueprint] #ctl .vlist button.on,:root[data-theme=blueprint] #ctl .tabs button[aria-selected=true],
+  :root[data-theme=blueprint] .seg button.on{background:rgba(255,255,255,.16) !important;color:#fff !important;border-color:#fff !important}
+  :root[data-theme=blueprint] .chip:has(input:checked)::before,:root[data-theme=blueprint] #ctl .vlist button.on i{background:#fff;border-color:#fff}
+  :root[data-theme=blueprint] #ctl .tabs{background:transparent;border-color:var(--line);border-radius:2px}
+  :root[data-theme=blueprint] #ctl .learnbtn{background:transparent !important;border-color:#fff !important;color:#fff}
+  :root[data-theme=blueprint] #ctl .learnbtn svg{color:#fff}
+  :root[data-theme=blueprint] #title .nm{text-shadow:none;font-family:var(--bp-font);letter-spacing:.06em;text-transform:uppercase}
+  :root[data-theme=blueprint] #title .ln{background:#fff}
+  :root[data-theme=blueprint] #pred{background:transparent;border-color:#fff;color:#fff;border-radius:2px}
+  :root[data-theme=blueprint] #scale{background:transparent;border-color:#fff;border-radius:2px}
+  :root[data-theme=blueprint] #scale .sh b,:root[data-theme=blueprint] .outcard .orow.top .op{color:#fff}
+  :root[data-theme=blueprint] .outcard .ob{background:rgba(255,255,255,.12)} :root[data-theme=blueprint] .outcard .ob i{background:rgba(255,255,255,.55)}
+  :root[data-theme=blueprint] .outcard .orow.top .ob i{background:#fff}
+  :root[data-theme=blueprint] #hint{color:#a9c4e2}
+  :root[data-theme=blueprint] .modal .hc{background:#0c3360;border-color:var(--line);border-radius:3px}
+  /* drawing sheet: double border, zone markers, title block */
+  #sheet{display:none;position:fixed;inset:5px;pointer-events:none;border:1.5px solid rgba(234,244,255,.75);z-index:1}
+  #sheet::before{content:"";position:absolute;inset:14px;border:1px solid rgba(234,244,255,.45)}
+  #sheet .z{position:absolute;font:10px var(--bp-font);color:rgba(234,244,255,.7);letter-spacing:.1em}
+  :root[data-theme=blueprint] #sheet{display:block}
+  :root[data-theme=blueprint] #left{left:26px;top:26px} :root[data-theme=blueprint] #legend{left:26px;bottom:26px}
+  :root[data-theme=blueprint] #title{right:30px;top:26px} :root[data-theme=blueprint] #hint{right:30px;bottom:26px}
+  #tblock{display:none;position:fixed;right:30px;bottom:48px;z-index:2;pointer-events:none;font-family:var(--bp-font);color:var(--bp-ink);
+          border:1.5px solid rgba(234,244,255,.85);background:rgba(10,44,84,.72);border-collapse:collapse;font-size:10.5px;min-width:340px}
+  :root[data-theme=blueprint] #tblock{display:table}
+  :root[data-theme=blueprint] body:has(#panel[style*="block"]) #tblock{display:none}
+  #tblock td{border:1px solid rgba(234,244,255,.5);padding:3px 8px;vertical-align:top}
+  #tblock small{display:block;font-size:8.5px;letter-spacing:.14em;color:#a9c4e2;text-transform:uppercase}
+  #tblock b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+  #tblock .big b{font-size:16px}
+  /* ---- control panel v2: header, tabs, groups ---- */
+  #ctl header{align-items:center;padding:9px 10px 0 13px}
+  #ctl .ver{font-size:10px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:2px}
+  #ctl .hbtn{width:26px;height:26px;padding:0 !important;display:grid;place-items:center;border-radius:50% !important;font-weight:700;font-size:13px;line-height:1}
+  #ctl #helpbtn{color:var(--acc);border-color:#2b6a86 !important}
+  #ctl #helpbtn.pulse{animation:pulse 1.8s ease-out 3}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(92,220,255,.55)}100%{box-shadow:0 0 0 10px rgba(92,220,255,0)}}
+  #ctl .tabs{display:flex;gap:2px;margin:9px 10px 0;padding:3px;background:#0e0e13;border:1px solid var(--line);border-radius:8px}
+  #ctl .tabs button{flex:1;border:0 !important;background:transparent;color:var(--mut);padding:5px 0;font-size:12px;border-radius:6px !important;transition:background .15s,color .15s}
+  #ctl .tabs button:hover{color:var(--fg);background:#16161d}
+  #ctl .tabs button[aria-selected=true]{background:#1a2a34;color:var(--acc)}
+  #ctl.closed .tabs{display:none}
+  #ctl .pane{display:none} #ctl .pane.on{display:block;animation:fade .15s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
+  #ctl .sec:first-child{margin-top:4px}
+  #ctl .learnbtn{display:flex;align-items:center;gap:6px;height:26px;padding:0 11px !important;border-radius:999px !important;font-size:12px;font-weight:600;
+                 color:#d8f6ff;background:linear-gradient(135deg,#173445,#1d2a4a) !important;border-color:#2b6a86 !important}
+  #ctl .learnbtn:hover{background:linear-gradient(135deg,#1d4256,#25345c) !important}
+  #ctl .learnbtn svg{color:var(--acc)}
+  /* ---- learn (course) dialog ---- */
+  #learn .hc{width:min(940px,100%);height:min(680px,calc(100vh - 32px))}
+  #learn .lw{display:flex;flex:1;min-height:0}
+  #learn nav{width:210px;flex:none;border-right:1px solid #1c1c24;padding:10px 8px;overflow:auto}
+  #learn nav .part{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:6px 8px 6px}
+  #learn nav button{display:flex;gap:9px;align-items:baseline;width:100%;text-align:left;background:none;border:0;color:#b9b9c4;font:inherit;font-size:13px;padding:7px 8px;border-radius:7px;cursor:pointer}
+  #learn nav button:hover{background:#15151c;color:var(--fg)}
+  #learn nav button.on{background:#14222b;color:var(--acc)}
+  #learn nav button em{font-style:normal;font-size:11px;color:var(--mut);width:14px;flex:none}
+  #learn nav button.on em{color:var(--acc)}
+  #learn .lc{flex:1;min-width:0;display:flex;flex-direction:column}
+  #learn .hb{flex:1;padding:4px 22px 10px;font-size:13.5px}
+  #learn h2{margin:6px 22px 0}
+  #learn .lede{font-size:14.5px;color:#e2e2ea;margin:8px 0 12px}
+  #learn h4{margin:16px 0 4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+  #learn figure{margin:12px 0;padding:12px;background:#0a0a0e;border:1px solid #1c1c24;border-radius:10px;text-align:center}
+  #learn figure svg{max-width:100%;height:auto}
+  #learn figcaption{font-size:11.5px;color:var(--mut);margin-top:6px}
+  #learn .try{margin:14px 0 4px;padding:10px 12px;border-left:3px solid var(--acc);background:#0f1b22;border-radius:0 8px 8px 0}
+  #learn .try b{color:var(--acc)}
+  #learn .eq{font:13px ui-monospace,Consolas,monospace;color:#9fe;background:#0b1714;border:1px solid #173a31;border-radius:6px;padding:6px 10px;margin:8px 0;display:block;overflow-x:auto;white-space:nowrap}
+  #learn table.kv td{border-bottom:1px solid #1c1c24;padding:5px 6px;vertical-align:top}
+  #learn table.kv td:first-child{width:auto;white-space:nowrap;color:var(--fg)}
+  #learn .hf .prog{flex:1;height:3px;background:#1c1c24;border-radius:2px;overflow:hidden}
+  #learn .hf .prog i{display:block;height:100%;background:var(--acc);transition:width .2s}
+  #learn .fx{margin:8px 0 6px;padding:11px 14px;background:#0b1714;border:1px solid #173a31;border-radius:9px;font:13.5px "Cambria Math",Cambria,"Times New Roman",serif;color:#c8f5ea;line-height:1.9;overflow-x:auto}
+  #learn .fx div{white-space:nowrap}
+  #learn .fx .c{font:11.5px system-ui,Segoe UI,sans-serif;color:var(--mut)}
+  #learn .fx.sm{font-size:12.5px;padding:7px 10px;line-height:1.75;margin:6px 0}
+  #learn .fx.sm div{white-space:normal}
+  #learn table.sym{border-collapse:collapse;width:100%;font-size:12.5px;margin:2px 0 4px}
+  #learn table.sym td{padding:4px 6px;border-bottom:1px solid #1a1a22;vertical-align:top}
+  #learn table.sym td:first-child{width:150px;white-space:nowrap;font:13px "Cambria Math",Cambria,serif;color:#c8f5ea}
+  #learn .fnote{font-size:12px;color:var(--mut);margin:4px 0 0}
+  #learn .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
+  #learn .glance div{background:#101017;border:1px solid #1f1f29;border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.45}
+  #learn .glance div b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:3px;font-weight:600}
+  #learn .glance div:first-child{border-color:#21485a} #learn .glance div:first-child b{color:var(--acc)}
+  #learn ol.steps{list-style:none;counter-reset:s;padding:0;margin:8px 0}
+  #learn ol.steps li{counter-increment:s;position:relative;padding:2px 0 8px 32px}
+  #learn ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:21px;height:21px;border-radius:50%;background:#14222b;border:1px solid #2b6a86;color:var(--acc);font-size:11px;font-weight:700;display:grid;place-items:center}
+  #learn .uses{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0}
+  #learn .uses div{display:flex;gap:9px;align-items:flex-start;background:#0f0f15;border:1px solid #1c1c24;border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+  #learn .uses div i{font-style:normal;font-size:16px;line-height:1.1}
+  #learn .uses div b{color:var(--fg)}
+  #learn .pc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  #learn .pc div{border-radius:8px;padding:8px 11px;font-size:12.5px;line-height:1.45}
+  #learn .pc .pro{background:#0f1d16;border:1px solid #1f4a3f} #learn .pc .con{background:#1d0f16;border:1px solid #4a1f33}
+  #learn .pc b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+  #learn .pc .pro b{color:#66bb6a} #learn .pc .con b{color:#ff6e9e}
+  #learn .pc ul{margin:0;padding-left:16px}
+  #learn .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
+  #learn .card{background:#101017;border:1px solid #1f1f29;border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.5;border-top:3px solid var(--k,#5cdcff)}
+  #learn .card h5{margin:0 0 4px;font-size:14px;color:#fff;display:flex;align-items:center;gap:7px}
+  #learn .card h5 span{width:9px;height:9px;border-radius:3px;background:var(--k)}
+  #learn .card p{margin:4px 0}
+  #learn .card .ana{color:var(--mut);font-style:italic}
+  #learn .card .where{margin-top:6px;font-size:11.5px;color:var(--mut)} #learn .card .where b{color:#c9c9d3;font-weight:600}
+  @media (max-width:720px){ #learn .glance,#learn .uses,#learn .pc,#learn .cards{grid-template-columns:1fr} }
+  @media (max-width:720px){ #learn .lw{flex-direction:column} #learn nav{width:auto;display:flex;gap:4px;overflow-x:auto;border-right:0;border-bottom:1px solid #1c1c24}
+    #learn nav .part{display:none} #learn nav button{white-space:nowrap;width:auto} }
+  /* ---- loading indicator, right of the control panel ---- */
+  #loading{position:fixed;left:396px;top:12px;z-index:40;display:flex;align-items:center;gap:11px;max-width:min(360px,calc(100vw - 420px));
+           padding:9px 14px 9px 11px;background:var(--bg);border:1px solid #2b6a86;border-radius:10px;backdrop-filter:blur(6px);
+           box-shadow:0 6px 24px rgba(0,0,0,.45);animation:fade .15s ease-out}
+  #loading[hidden]{display:none}
+  #loading b{display:block;font-size:12.5px;color:var(--fg);font-weight:600}
+  #loading #loadmsg{display:block;font-size:11.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #loading .spin{width:20px;height:20px;flex:none;border-radius:50%;border:2.5px solid #1f3644;border-top-color:var(--acc);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  body.isloading #card{top:74px;max-height:calc(100vh - 86px)}
+  @media (max-width:720px){ #loading{left:12px;top:auto;bottom:12px;max-width:calc(100vw - 24px)} }
+  #ctl .vlist{display:flex;flex-direction:column;gap:4px}
+  #ctl .vlist button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:7px 10px}
+  #ctl .vlist button span{color:var(--fg)}
+  #ctl .vlist button small{margin-left:auto;color:var(--mut);font-size:11px}
+  #ctl .vlist button kbd{margin-left:auto}
+  #ctl .vlist button i{width:12px;height:12px;border-radius:50%;border:1.5px solid #5a5a68;flex:none;box-sizing:border-box}
+  #ctl .vlist button.on{background:#14222b;border-color:#2b6a86}
+  #ctl .vlist button.on i{border:4px solid var(--acc)}
+  #ctl .vlist button.on span{color:var(--acc)}
+  #ctl .grp{font-size:11px;color:var(--mut);margin:8px 0 4px}
+  #ctl :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+  #ctl #status{border-top:1px solid var(--line);padding-top:7px}
+  kbd{font:11px ui-monospace,Consolas,monospace;background:#1b1b23;border:1px solid #33333f;border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--fg)}
+  /* ---- tutorial ---- */
+  .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);padding:16px}
+  .modal[hidden]{display:none}
+  .modal .hc{width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#0d0d12;border:1px solid #2a2a35;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:fade .18s ease-out}
+  .modal .hh{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+  .modal .step{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+  .modal .hh .sp{flex:1}
+  .modal .x{background:none;border:0;color:var(--mut);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}
+  .modal .x:hover{color:var(--fg);background:#1b1b23}
+  .modal h2{margin:6px 16px 0;font-size:19px;color:#fff}
+  .modal .hb{padding:6px 16px 4px;overflow:auto;line-height:1.55;color:#c9c9d3}
+  .modal .hb ul{padding-left:18px;margin:6px 0} .modal .hb li{margin:3px 0}
+  .modal .hb b{color:var(--fg)} .modal .hb code{font:12px ui-monospace,Consolas,monospace;color:#9fe;background:#10241f;border-radius:4px;padding:0 4px}
+  .modal .hb table{border-collapse:collapse;width:100%} .modal .hb td{padding:5px 4px;border-bottom:1px solid #1c1c24}
+  .modal .hb td:first-child{width:130px;white-space:nowrap}
+  .modal .hf{display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:1px solid #1c1c24;margin-top:8px}
+  .modal .dots{display:flex;gap:5px;flex:1}
+  .modal .dots button{width:8px;height:8px;padding:0;border-radius:50%;border:0;background:#33333f;cursor:pointer}
+  .modal .dots button.on{background:var(--acc);width:20px;border-radius:4px}
+  .modal .hf .b{background:#16161d;color:var(--fg);border:1px solid #30303a;border-radius:7px;padding:6px 14px;font:inherit;cursor:pointer}
+  .modal .hf .b:hover{background:#1d1d27;border-color:#4a4a58}
+  .modal .hf .b.pri{background:#1a3a4a;border-color:#2b6a86;color:#fff}
+  .modal .hf .b.pri:hover{background:#21495c}
+  .modal .hf .b:disabled{opacity:.35;cursor:default}
+  .modal :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+  #panel button.act{margin:8px 0;background:#16161d;color:#e4e4ea;border:1px solid #30303a;border-radius:6px;padding:5px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="gl"></div>
+<div id="sheet" aria-hidden="true"></div>
+<table id="tblock" aria-hidden="true"><tr><td colspan="2" class="big"><small>Drawing</small><b id="tb-name">—</b></td><td><small>Project</small><b>nnviz</b></td></tr>
+<tr><td><small>Parameters</small><b id="tb-params">—</b></td><td><small>Layers</small><b id="tb-layers">—</b></td><td><small>Scale</small><b id="tb-scale">—</b></td></tr>
+<tr><td><small>Architecture</small><b id="tb-arch">—</b></td><td><small>Date</small><b id="tb-date">—</b></td><td><small>Sheet</small><b>1 / 1</b></td></tr></table>
+<div id="labels"></div>
+<div id="left">
+  <section id="ctl">
+    <header>
+      <span class="brand">nnviz</span><span class="sub3d">3D</span><span class="sp"></span>
+      <button id="learnbtn" class="learnbtn" title="Explain neural networks: a short course from the basics (L)" aria-label="Open neural networks explainer">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3" cy="4" r="1.6"/><circle cx="3" cy="12" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="13" cy="4" r="1.6"/><circle cx="13" cy="12" r="1.6"/><path d="M4.5 4.6 6.6 7.3M4.5 11.4 6.6 8.7M9.4 7.3 11.5 4.6M9.4 8.7 11.5 11.4"/></g></svg>
+        Explain NNs</button>
+      <button id="helpbtn" class="hbtn" title="Tutorial and shortcuts (?)" aria-label="Open tutorial">?</button>
+      <button id="collapse" class="hbtn" title="Collapse / expand controls" aria-label="Collapse controls" aria-expanded="true">▾</button>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Control groups">
+      <button role="tab" data-tab="model" aria-selected="true">Model</button>
+      <button role="tab" data-tab="view" aria-selected="false">View</button>
+      <button role="tab" data-tab="display" aria-selected="false">Display</button>
+    </nav>
+    <div class="body">
+      <div class="pane on" data-pane="model" role="tabpanel">
+      <div class="sec">Model</div>
+      <div class="row">
+        <select id="model" class="grow"></select>
+        <label class="chip" title="Show / hide the model card (key: I)"><input type="checkbox" id="cardtoggle" checked>Info</label>
+      </div>
+      <div class="row">
+        <label class="chip" title="Download torchvision pretrained weights on load (needs internet)"><input type="checkbox" id="pre">Pretrained weights</label>
+        <span class="grow"></span>
+        <button id="upbtn" title="Import a .py (build()) or a .pt/.pth whole-module file">Import…</button>
+        <input type="file" id="file" accept=".py,.pt,.pth" style="display:none">
+      </div>
+      <div id="scale" hidden></div>
+      <div id="arch"></div>
+      <details><summary>Import options</summary>
+        <input id="inshape" placeholder="Input spec for .pt files: 1,3,224,224  or  int:1,32:50257">
+      </details>
+
+      <div class="sec">Input</div>
+      <div class="row"><select id="cls" class="grow"></select><button id="resample">New noise</button></div>
+      <div class="row"><span id="pred"></span></div>
+      <div id="ctrls"></div>
+      </div>
+
+      <div class="pane" data-pane="view" role="tabpanel">
+      <div class="sec">Layout</div>
+      <div class="vlist" id="layoutseg" role="radiogroup" aria-label="Layout">
+        <button data-v="line" role="radio"><i></i><span>Line</span><small>Straight path · supports depth levels</small></button>
+        <button data-v="snake" role="radio"><i></i><span>Folded grid</span><small>Compact rows for deep models</small></button>
+        <button data-v="spiral" role="radio"><i></i><span>Spiral</span><small>Coiled path · overview of long models</small></button>
+      </div>
+      <select id="layout" style="display:none"><option value="line">Line</option><option value="snake">Folded grid</option><option value="spiral">Spiral</option></select>
+
+      <div class="sec">Camera</div>
+      <div class="vlist">
+        <button id="fit" title="Frame the whole model (F)"><span>Fit view</span><kbd>F</kbd></button>
+        <button id="along" title="Camera behind the input, looking along the data flow"><span>Look along flow</span><small>From the input</small></button>
+      </div>
+
+      <div class="sec">Colour</div>
+      <div class="row"><label for="metric" style="color:var(--mut);font-size:12px;white-space:nowrap">Colour layers by</label>
+        <select id="metric" class="grow"><option value="type">Layer type</option><option value="params">Parameters</option>
+          <option value="flops">FLOPs (approx.)</option><option value="size">Activation size</option>
+          <option value="sparsity">Sparsity (zeros)</option><option value="mean_abs">Mean |activation|</option>
+          <option value="residual">Residual change ‖F(x)‖/‖x‖</option></select></div>
+
+      <div class="sec">Blocks</div>
+      <div class="row">
+        <button id="collapseall" class="grow" title="Fold every repeated block into a single node">Collapse all</button>
+        <button id="expandall" class="grow" title="Show every layer inside every block">Expand all</button>
+      </div>
+      <div class="chips" style="margin-top:6px">
+        <label class="chip" title="Fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">Collapse blocks</label>
+        <label class="chip" title="Animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>Fold animation</label>
+        <label class="chip" title="Coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>Block floors</label>
+      </div>
+      </div>
+
+      <div class="pane" data-pane="display" role="tabpanel">
+      <div class="sec">Theme</div>
+      <div class="row"><div class="seg" id="themeseg" role="radiogroup" aria-label="Theme">
+        <button data-t="dark" role="radio" title="Default dark theme">Dark</button>
+        <button data-t="blueprint" role="radio" title="Engineering blueprint: white linework on blue grid paper, with a drawing title block">Blueprint</button>
+      </div></div>
+      <div class="sec">Data</div>
+      <div class="chips">
+        <label class="chip" title="Live activation volumes for the current input"><input type="checkbox" id="showact" checked>Activations</label>
+        <label class="chip" title="Weight lines / kernels between layers"><input type="checkbox" id="showw" checked>Weights</label>
+        <label class="chip" title="Sliding conv kernels and sweeps"><input type="checkbox" id="showk" checked>Kernel animation</label>
+        <label class="chip" title="Layer names and shapes"><input type="checkbox" id="showl" checked>Labels</label>
+      </div>
+      <div class="sec">Structure</div>
+      <div class="chips">
+        <label class="chip" title="Translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>Size envelope</label>
+        <label class="chip" id="depthchip" title="Line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>Show depth <small style="opacity:.55;margin-left:3px">Line view only</small></label>
+      </div>
+      <div class="sec">Performance</div>
+      <div class="chips">
+        <label class="chip" title="Fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>Easy rendering</label>
+      </div>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+</div>
+<div id="bottom"><div id="gallery"></div><div id="profcard" hidden><div class="ph"><span class="pt">Tensor size</span><span class="ps">along the main path · log scale · click a point to jump</span><span class="sp"></span><span id="pstat"></span></div>
+<canvas id="profile" aria-label="Tensor size along the main path"></canvas><div id="ptip" hidden></div></div></div>
+<div id="title"></div>
+<div id="card"></div>
+<div id="legend"></div>
+<div id="panel"></div>
+<div id="hint">Drag: orbit · Right-drag: pan · Wheel: zoom · <kbd>?</kbd> Help</div>
+<div id="loading" role="status" aria-live="polite" hidden><span class="spin" aria-hidden="true"></span><div><b id="loadtitle">Loading</b><span id="loadmsg"></span></div></div>
+<div id="learn" class="modal" role="dialog" aria-modal="true" aria-labelledby="ltitle" hidden>
+  <div class="hc">
+    <div class="hh"><span class="step" id="lstep"></span><span class="sp"></span><button class="x" id="lclose" aria-label="Close" title="Close (Esc)">×</button></div>
+    <div class="lw">
+      <nav id="lnav" aria-label="Chapters"></nav>
+      <div class="lc">
+        <h2 id="ltitle"></h2>
+        <div class="hb" id="lbody"></div>
+        <div class="hf">
+          <div class="prog"><i id="lprog"></i></div>
+          <button class="b" id="lprev">Previous</button>
+          <button class="b pri" id="lnext">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="htitle" hidden>
+  <div class="hc">
+    <div class="hh"><span class="step" id="hstep"></span><span class="sp"></span><button class="x" id="hclose" aria-label="Close tutorial" title="Close (Esc)">×</button></div>
+    <h2 id="htitle"></h2>
+    <div class="hb" id="hbody"></div>
+    <div class="hf">
+      <div class="dots" id="hdots"></div>
+      <button class="b" id="hprev">Back</button>
+      <button class="b pri" id="hnext">Next</button>
+    </div>
+  </div>
+</div>
+<script src="static-shim.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="info.js"></script>
+<script>
+"use strict";
+const KIND = {
+  input:      {color:"#ffffff", label:"Input",        desc:"Image as a single slab"},
+  conv:       {color:"#26c6da", label:"Convolution",  desc:"C slabs; a k×k×C_in kernel cuboid slides over the input"},
+  linear:     {color:"#66bb6a", label:"Linear",       desc:"Column of neurons, dense weight lines"},
+  attention:  {color:"#ab47bc", label:"Attention",    desc:"X → Q,K,V → per-head softmax(QKᵀ) maps → ·V → concat → W_o"},
+  norm:       {color:"#ffca28", label:"Normalization",desc:"Cage that rescales the tensor"},
+  activation: {color:"#ff9800", label:"Activation",   desc:"Gate plate showing the function"},
+  pool:       {color:"#bcaaa4", label:"Pooling",      desc:"Sliding window, no weights"},
+  op:         {color:"#90a4ae", label:"Tensor op",    desc:"Reshape / reduce / add"},
+  embedding:  {color:"#4db6ac", label:"Embedding",    desc:"Lookup table: token id → vector"},
+  moe:        {color:"#d4e157", label:"Mixture of experts", desc:"Router plane (tokens × experts), top-k experts per token"},
+  upsample:   {color:"#5c6bc0", label:"Up-sampling",  desc:"Enlarges spatial size, no parameters"},
+  group:      {color:"#b0bec5", label:"Collapsed block", desc:"Repeated block shown as one node (double-click to expand)"},
+  output:     {color:"#ffffff", label:"Output",       desc:"Logits"},
+};
+const CELL = 0.5, SLAB = 0.75;
+const BASE = [38,38,54], HI = [90,220,255], NEG = [255,79,163];
+const T = THREE;
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+function fmtParams(n){
+  if (n == null) return "?";
+  if (n < 1e3) return `${n}`;
+  if (n < 1e6) return `${(n/1e3).toFixed(n < 1e4 ? 1 : 0)} K`;
+  if (n < 1e9) return `${(n/1e6).toFixed(n < 1e7 ? 2 : 1)} M`;
+  return `${(n/1e9).toFixed(2)} B`;
+}
+const lerp = (a,b,t) => a + (b-a)*t;
+function divColor(a){
+  const t = clamp(Math.abs(a), 0, 1), c = a >= 0 ? HI : NEG;
+  return new T.Color(lerp(BASE[0],c[0],t)/255, lerp(BASE[1],c[1],t)/255, lerp(BASE[2],c[2],t)/255);
+}
+const cssDiv = a => { const c = divColor(a); return `rgb(${c.r*255|0},${c.g*255|0},${c.b*255|0})`; };
+
+// ---------- three setup ----------
+const host = document.getElementById("gl");
+const renderer = new T.WebGLRenderer({antialias:true, preserveDrawingBuffer:true, alpha:true});
+renderer.setPixelRatio(1);   // 'easy rendering' is on by default
+renderer.setSize(innerWidth, innerHeight);
+host.appendChild(renderer.domElement);
+const scene = new T.Scene(); scene.background = new T.Color(0x000000);
+const camera = new T.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 2000);
+const controls = new T.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.addEventListener("change", () => { needsRender = true; });
+let world = new T.Group(); scene.add(world);
+addEventListener("resize", () => { needsRender = true; renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); });
+
+// ---------- state ----------
+let G, A = null, nodeBy = {}, inc = {}, sel = null, seed = 0;
+let sweeps = [], labels = [], pickers = [], manyNodes = false, needsRender = true;
+const MODELS = {};
+const FLOORCOL = ["#4fc3f7", "#aed581", "#ffb74d", "#ba68c8", "#4db6ac", "#f06292", "#fff176", "#90a4ae"];
+let G0 = null, metricRange = null, paramVals = {}, visSpine = [];
+const expanded = new Set();
+
+const cellY = (g, r) => g.oy + (g.H-1-r)*CELL + CELL/2;
+const cellZ = (g, c) => g.oz + c*CELL + CELL/2;
+const slabX = (g, c) => g.ox + c*SLAB;
+const Wp = (n, v) => n.grp.localToWorld(v.clone());
+const HEADCOL = ["#e1bee7", "#9fa8da", "#f48fb1", "#80deea"];
+function cellPos(n, c, r, col){ const g = n.g; return new T.Vector3(slabX(g,c), cellY(g,r), cellZ(g,col)); }
+function unitPos(n, i){
+  const g = n.g;
+  if (g.type === "vol")  return new T.Vector3(slabX(g,i), g.oy + g.H*CELL/2, g.oz + g.W*CELL/2);
+  if (g.type === "grid") return new T.Vector3(g.ox, g.oy + g.H*CELL/2, cellZ(g,i));
+  return new T.Vector3(g.ox, cellY(g,i), g.oz + CELL/2);
+}
+
+// ---------- view graph: repeated blocks can be folded into single nodes ----------
+function blockId(p){
+  if (!p) return null;
+  const sg = p.split(".");
+  for (let i = 0; i < sg.length - 1; i++) if (/^\d+$/.test(sg[i]) || /_\d+$/.test(sg[i])) return sg.slice(0, i+1).join(".");
+  for (let i = sg.length - 2; i > 0; i--) if (/[A-Za-z]\d+$/.test(sg[i])) return sg.slice(0, i+1).join(".");
+  return null;
+}
+function makeView(){
+  const raw = G0.nodes, rawEdges = G0.edges, idx = {};
+  raw.forEach((n, i) => idx[n.name] = i);
+  const ins = {}; rawEdges.forEach(e => (ins[e.dst] ||= []).push(e.src));
+  const all = {};
+  raw.forEach(n => { const id = blockId(n.path); if (id) all[n.name] = id; });
+  raw.forEach(n => {                       // ops without a module path join the block of their latest input
+    if (all[n.name] || n.kind === "input" || n.kind === "output") return;
+    const i = ins[n.name] || []; if (!i.length) return;
+    const last = i.reduce((a, b) => idx[a] > idx[b] ? a : b);
+    if (all[last]) all[n.name] = all[last];
+  });
+  const cnt = {}; Object.values(all).forEach(g => cnt[g] = (cnt[g] || 0) + 1);
+  Object.keys(all).forEach(k => { if (cnt[all[k]] < 2) delete all[k]; });     // singletons are not blocks
+  const collapsed = {};
+  if ($("grpblocks").checked) Object.keys(all).forEach(k => { if (!expanded.has(all[k])) collapsed[k] = all[k]; });
+  const members = {};
+  raw.forEach(n => { const g = collapsed[n.name]; if (g) (members[g] ||= []).push(n); });
+  const nodes = [], emitted = new Set();
+  raw.forEach(n => {
+    const g = collapsed[n.name];
+    if (!g){ nodes.push({...n, block: all[n.name] || null}); return; }
+    if (emitted.has(g)) return;
+    emitted.add(g);
+    const ms = members[g], last = ms[ms.length - 1], kinds = {};
+    ms.forEach(m => kinds[m.label] = (kinds[m.label] || 0) + 1);
+    nodes.push({name: g, kind: "group", label: `${ms.length} layers`, units: last.units, shape: last.shape, tshape: last.tshape,
+                dshape: last.dshape, sampled: last.sampled, heads: null, params: ms.reduce((a, m) => a + m.params, 0),
+                attrs: {layers: ms.length}, path: g, numel: last.numel, flops: ms.reduce((a, m) => a + m.flops, 0),
+                level: ms[0].level,                       // a block sits at the level where it starts
+                members: ms.map(m => m.name), memberKinds: kinds, actKey: last.name, block: g});
+  });
+  const seen = new Set(), edges = [];
+  rawEdges.forEach(e => {
+    const a = collapsed[e.src] || e.src, b = collapsed[e.dst] || e.dst;
+    if (a === b) return;
+    const key = `${a}|${b}|${e.join || ""}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push(a !== e.src || b !== e.dst ? {src: a, dst: b, mode: "bundle", join: e.join} : {...e});
+  });
+  const repm = {}; raw.forEach(n => repm[n.name] = collapsed[n.name] || n.name);
+  const bcol = {}, seenB = [];
+  raw.forEach(n => { const id = all[n.name]; if (id && !(id in bcol)){ bcol[id] = FLOORCOL[seenB.length % FLOORCOL.length]; seenB.push(id); } });
+  return {...G0, nodes, edges, rep: repm, blockColors: bcol, blockCount: new Set(Object.values(all)).size,
+          collapsedCount: new Set(Object.values(collapsed)).size};
+}
+// "show depth" needs 3+ resolution levels and the line view; the tick is kept so it comes back when you return to line
+function updateDepthChip(){
+  if (!G) return;
+  const hasLv = !!(G.levels && G.levels.length >= 3), line = $("layout").value === "line";
+  $("showdepth").disabled = !(hasLv && line);
+  $("depthchip").style.opacity = hasLv && line ? "" : "0.45";
+  $("depthchip").title = !hasLv ? "Depth needs a model with 3 or more resolution levels (U-Net, VAE, ResNet, VGG…)"
+    : !line ? "Depth is only available in the line view: switch View to “Line”"
+    : "Lowers each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom";
+}
+function updateBlockButtons(){
+  if (!G) return;
+  updateDepthChip();
+  const n = G.blockCount || 0;
+  $("collapseall").disabled = n === 0 || G.collapsedCount === n;
+  $("expandall").disabled = n === 0 || G.collapsedCount === 0;
+  $("collapseall").title = n ? `Fold all ${n} blocks into single nodes` : "This model has no repeated blocks";
+  $("expandall").title = n ? `Show the layers inside all ${n} blocks` : "This model has no repeated blocks";
+}
+// ---------- fold / unfold animation ----------
+// 1 camera rises to an overview · 2 layers fold into their block *in place* (same colour) · 3 blocks glide into the
+// compact layout · 4 camera returns to what you were looking at (only if you were zoomed in). Expanding is the reverse.
+let folding = false, foldAnim = null;
+const ease = x => { x = clamp(x, 0, 1); return x < 0.5 ? 2*x*x : 1 - Math.pow(-2*x + 2, 2)/2; };
+const ZERO = new T.Vector3();
+function finishFold(){
+  if (!foldAnim) return;
+  foldAnim.ghosts.forEach(g => world.remove(g.mesh));
+  const end = foldAnim.cam && foldAnim.cam.end;
+  if (end){ camera.position.copy(end.pos); controls.target.copy(end.target); controls.update(); }
+  foldAnim = null; folding = false;
+  $("labels").style.visibility = "";
+  rebuild();
+  needsRender = true;
+}
+function transition(mutate, overview){
+  finishFold();
+  if (!$("animblocks").checked || !G || G.nodes.length > 350){ mutate(); rebuildAll(!overview); return; }
+  const loc = n => new T.Vector3(n.b.ox + n.b.sx/2, n.b.oy + n.b.sy/2, n.b.oz + n.b.sz/2);
+  const colOf = n => (G.blockColors && G.blockColors[n.block || n.name]) || KIND[n.kind].color;
+  const old = G.nodes.map(n => ({name: n.name, kind: n.kind, members: n.members || [n.name], center: Wp(n, loc(n)),
+                                 size: [n.b.sx, n.b.sy, n.b.sz], quat: n.grp.quaternion.clone(), color: colOf(n)}));
+  const oldCenter = {};
+  old.forEach(o => o.members.forEach(m => oldCenter[m] = o.center));
+  const camInit = {pos: camera.position.clone(), target: controls.target.clone()};
+  const oldFit = overview ? fit(false) : null;                       // overview framing of the current layout
+  let focusRaw = null, best = Infinity;
+  old.forEach(o => { const d = o.center.distanceTo(camInit.target); if (d < best){ best = d; focusRaw = o.members[0]; } });
+  mutate();
+  folding = true;
+  rebuildAll(true);
+  world.updateMatrixWorld(true);
+  const collapsing = G.nodes.length < old.length;
+  const fin = {};
+  G.nodes.forEach(n => fin[n.name] = {pos: n.grp.position.clone(), center: Wp(n, loc(n))});
+  const newFit = overview ? fit(false) : null;                       // overview framing of the new layout
+
+  const avg = vs => vs.length ? vs.reduce((a, v) => a.add(v), new T.Vector3()).multiplyScalar(1/vs.length) : null;
+  const span = {}, cnt = {};                                         // where each block's layers sit in the *new* layout
+  G.nodes.forEach(n => { if (n.block && n.kind !== "group"){ (span[n.block] ||= new T.Vector3()).add(fin[n.name].center); cnt[n.block] = (cnt[n.block] || 0) + 1; } });
+  Object.keys(span).forEach(k => span[k].multiplyScalar(1/cnt[k]));
+
+  const items = G.nodes.map(n => {
+    const F = fin[n.name].center, mem = n.members || [n.name];
+    const start = avg(mem.map(m => oldCenter[m]).filter(Boolean)) || F.clone();
+    let mid, hidden1 = false, showAt = 0;
+    if (collapsing){ mid = start.clone(); if (n.kind === "group") showAt = 0.55; }   // stays in place, then compacts
+    else if (n.block && span[n.block]){ mid = span[n.block].clone(); hidden1 = true; } // block moves apart first, then unfolds
+    else mid = F.clone();
+    return {n, to: fin[n.name].pos, off0: start.sub(F), offM: mid.sub(F), hidden1, showAt};
+  });
+
+  const ghosts = [];
+  const addGhost = (o, from, to, kind) => {
+    const mat = new T.MeshBasicMaterial({color: new T.Color(o.color), transparent: true, opacity: 0.55, depthWrite: false});
+    const mesh = new T.Mesh(new T.BoxGeometry(o.size[0] + 0.3, o.size[1] + 0.3, o.size[2] + 0.3), mat);
+    mesh.position.copy(from); mesh.quaternion.copy(o.quat);
+    world.add(mesh);
+    ghosts.push({mesh, mat, from, to, kind});
+  };
+  if (collapsing){
+    old.forEach(o => {                                               // each layer shrinks into its block, in its colour
+      if (o.kind === "group") return;
+      const tgt = G.rep[o.members[0]];
+      if (!tgt || tgt === o.name || !nodeBy[tgt] || nodeBy[tgt].kind !== "group") return;
+      const to = avg(nodeBy[tgt].members.map(m => oldCenter[m]).filter(Boolean)) || o.center;
+      addGhost(o, o.center, to, "shrink");
+    });
+  } else {
+    old.forEach(o => { if (o.kind === "group" && span[o.name]) addGhost(o, o.center, span[o.name], "split"); });
+  }
+
+  // camera plan
+  let cam = null;
+  if (overview){
+    const big = oldFit.dist >= newFit.dist ? oldFit : newFit;
+    let ret = null;
+    if (camInit.pos.distanceTo(camInit.target) < 0.6 * newFit.dist && focusRaw){
+      const fn = nodeBy[G.rep[focusRaw]];
+      if (fn){ const Tg = fin[fn.name].center.clone(); ret = {pos: Tg.clone().add(camInit.pos.clone().sub(camInit.target)), target: Tg}; }
+    }
+    cam = {init: camInit, big, fin: newFit, ret, end: ret || newFit};
+  }
+  const ph0 = overview ? 450 : 0, ph1 = 600, ph2 = 700, ph3 = cam && cam.ret ? 500 : 0;
+  $("labels").style.visibility = "hidden";
+  foldAnim = {t0: performance.now(), ph0, ph1, ph2, ph3, b0: ph0, b1: ph0 + ph1, b2: ph0 + ph1 + ph2, b3: ph0 + ph1 + ph2 + ph3,
+              items, ghosts, cam};
+  stepFold();
+  needsRender = true;
+}
+function stepFold(){
+  const fa = foldAnim;
+  if (!fa) return;
+  const el = performance.now() - fa.t0;
+  const p1 = ease((el - fa.b0)/fa.ph1), p2 = ease((el - fa.b1)/fa.ph2);
+  fa.items.forEach(it => {
+    const off = it.off0.clone().lerp(it.offM, p1).lerp(ZERO, p2);
+    it.n.grp.position.copy(it.to).add(off);
+    it.n.grp.visible = !(it.hidden1 && el < fa.b1) && !(it.showAt && p1 < it.showAt);
+  });
+  fa.ghosts.forEach(g => {
+    g.mesh.position.lerpVectors(g.from, g.to, p1);
+    if (g.kind === "shrink"){ g.mesh.scale.setScalar(lerp(1, 0.2, p1)); g.mat.opacity = 0.55*(1 - p1); }
+    else { g.mesh.scale.setScalar(lerp(1, 1.12, p2)); g.mat.opacity = 0.55*(1 - p2); }
+  });
+  if (fa.cam){
+    const c = fa.cam;
+    let pos, tg;
+    if (el < fa.b0){ const k = ease(el/fa.ph0); pos = c.init.pos.clone().lerp(c.big.pos, k); tg = c.init.target.clone().lerp(c.big.target, k); }
+    else if (el < fa.b1){ pos = c.big.pos; tg = c.big.target; }
+    else if (el < fa.b2){ pos = c.big.pos.clone().lerp(c.fin.pos, p2); tg = c.big.target.clone().lerp(c.fin.target, p2); }
+    else if (c.ret){ const k = ease((el - fa.b2)/fa.ph3); pos = c.fin.pos.clone().lerp(c.ret.pos, k); tg = c.fin.target.clone().lerp(c.ret.target, k); }
+    else { pos = c.fin.pos; tg = c.fin.target; }
+    camera.position.copy(pos); controls.target.copy(tg);
+  }
+  needsRender = true;
+  if (el >= fa.b3) finishFold();
+}
+
+function rebuildAll(keepCam){
+  const selName = sel && sel.name;
+  G = makeView();
+  nodeBy = {}; inc = {};
+  manyNodes = G.nodes.length > 40;
+  layout(); arrange($("layout").value);
+  sel = selName && nodeBy[selName] ? nodeBy[selName] : null;
+  rebuild(); renderLegend(); showPanel(); updateBlockButtons();
+  if (!keepCam) fit();
+}
+
+// ---------- layout ----------
+function layout(){
+  G.nodes.forEach(n => { nodeBy[n.name] = n; inc[n.name] = []; });
+  G.edges.forEach(e => inc[e.dst].push(e.src));
+  const visiting = new Set();
+  const depthOf = n => {
+    if (n.depth != null) return n.depth;
+    if (visiting.has(n.name)) return 0;
+    visiting.add(n.name);
+    n.depth = Math.max(-1, ...inc[n.name].map(p => depthOf(nodeBy[p]))) + 1;
+    visiting.delete(n.name);
+    return n.depth;
+  };
+  G.nodes.forEach(depthOf);
+  G.nodes.forEach(n => {
+    const s = n.dshape;      // batch-free, sampled for display
+    n.g = s.length === 3 ? {type:"vol", C:s[0], H:s[1], W:s[2]}
+        : s.length === 2 ? {type:"grid", C:1, H:s[0], W:s[1]}
+        : {type:"vec", C:1, H:s[0], W:1};
+    const g = n.g;
+    g.sx = g.C*SLAB; g.sy = g.H*CELL; g.sz = g.W*CELL;
+    n.headPlanes = n.kind === "attention" && n.heads && g.type === "grid" && n.weights && n.weights.qkv ? n.heads : 0;
+    n.b = {sx: g.sx, sy: g.sy, sz: g.sz, off: 0};
+    n.moe = n.kind === "moe" && g.type === "grid" ? (n.attrs.num_experts || 0) : 0;
+    if (n.moe){ n.b.off = 4; n.b.sx = 4 + g.sx; n.b.sz = Math.max(g.sz, Math.min(n.moe, 32)*CELL); }
+    if (n.headPlanes){
+      const hx = 3.4, cx = hx + n.headPlanes*SLAB + 3.0;
+      n.att = {qx: 0, hx, cx, gap: 1.6};
+      n.b.off = cx + 3.4; n.b.sx = n.b.off + g.sx;
+      n.b.sy = g.sy; n.b.sz = Math.max(3*g.sz + 2*n.att.gap, g.H*CELL);
+    }
+  });
+  G.edges.forEach(e => { e.skip = nodeBy[e.dst].depth - nodeBy[e.src].depth > 1; });
+  // depth levels: each layer hangs lower the more its feature map has been downsampled
+  G.depthOn = !!(G.levels && G.levels.length >= 3 && $("showdepth").checked);
+  const cols = {};
+  G.nodes.forEach(n => (cols[n.depth] ||= []).push(n));
+  let X = 0;
+  Object.keys(cols).map(Number).sort((a,b) => a-b).forEach(d => {
+    const ns = cols[d], tot = ns.reduce((a,n) => a + n.b.sz, 0) + 5*(ns.length-1);
+    let z = -tot/2, ext = 0;
+    ns.forEach(n => {
+      n.b.ox = X; n.b.oy = -n.b.sy/2; n.b.oz = z; z += n.b.sz + 5; ext = Math.max(ext, n.b.sx);
+      const g = n.g;
+      g.ox = n.b.ox + n.b.off; g.oy = -g.sy/2; g.oz = n.b.oz + (n.b.sz - g.sz)/2;
+    });
+    cols[d].info = {cx: X + ext/2, ext, zext: tot};
+    ns.forEach(n => { n.colExt = ext; n.colCx = X + ext/2; });
+    X += ext + 4;
+  });
+  G.cols = Object.keys(cols).map(Number).sort((a,b) => a-b).map(d => ({d, nodes: cols[d], ...cols[d].info}));
+  G.totalLen = X;
+  // the whole U spans ~15 % of the model's length, from the fully expanded reference so folding never rescales it
+  const nl = G.levels ? G.levels.length : 0, Lref = (G0 && G0.refLen) || G.totalLen;
+  G.levelStep = clamp(0.15*Lref/Math.max(1, nl - 1), Math.max(5, 0.75*Math.max(...G.nodes.map(n => n.b.sy))), 45);
+  G.nodes.forEach(n => n.drop = G.depthOn ? (n.level || 0)*G.levelStep : 0);
+}
+
+// poses: world = P + R(yaw)·(local − (cx,0,0)); each depth column is one station on the path
+function arrange(mode){
+  const C = G.cols, nc = C.length;
+  const pose = (col, px, py, pz, yaw) => col.nodes.forEach(n => n.pose = {px, py, pz, yaw, cx: col.cx});
+  if (mode === "snake"){
+    const rows = Math.max(3, Math.min(14, Math.round(Math.sqrt(nc/2)))), per = Math.ceil(nc/rows), rowGap = Math.max(...C.map(c => c.zext)) + 12;
+    for (let r = 0; r < rows; r++){
+      const row = C.slice(r*per, (r+1)*per); if (!row.length) continue;
+      let x = 0; const xs = row.map(c => { const p = x + c.ext/2; x += c.ext + 5; return p; });
+      const width = x - 5;
+      row.forEach((c, i) => r % 2 === 0 ? pose(c, xs[i], 0, r*rowGap, 0) : pose(c, width - xs[i], 0, r*rowGap, Math.PI));
+    }
+  } else if (mode === "spiral"){
+    // The spiral's shape is fixed by the *fully expanded* model (reference length), and stations are placed by their
+    // fraction along the path. A collapsed block therefore lands exactly where its layers were: folding never reshapes it.
+    const Lref = (G0 && G0.refLen) || G.totalLen, Zref = (G0 && G0.refZext) || Math.max(...C.map(c => c.zext));
+    const sc = Lref / G.totalLen;
+    const turn = Zref + 14, rise = 11, k = turn/(2*Math.PI);
+    const r0 = Math.max(10, Lref/(2*Math.PI*1.8));
+    let th = 0, arc = 0;
+    // input on the outside, output at the centre: walk the spiral from the centre outward
+    // placing the LAST station first, and flow along the reversed (inward) tangent
+    [...C].reverse().forEach(c => {
+      const target = (G.totalLen - 4 - c.cx) * sc;
+      while (arc < target){ const r = r0 + k*th; arc += Math.hypot(r, k)*0.002; th += 0.002; }
+      const r = r0 + k*th, px = r*Math.cos(th), pz = r*Math.sin(th);
+      const tx = -r*Math.sin(th) + k*Math.cos(th), tz = r*Math.cos(th) + k*Math.sin(th);
+      pose(c, px, th/(2*Math.PI)*rise, pz, Math.atan2(tz, -tx));   // direction (−tx, −tz): inward
+    });
+  } else C.forEach(c => pose(c, c.cx, 0, 0, 0));
+}
+function applyPose(n){
+  const p = n.pose, g = n.grp;
+  g.rotation.set(0, p.yaw, 0);
+  const off = new T.Vector3(p.cx, 0, 0).applyAxisAngle(new T.Vector3(0,1,0), p.yaw);
+  const drop = $("layout").value === "line" ? (n.drop || 0) : 0;      // depth levels are a line-layout feature
+  g.position.set(p.px - off.x, p.py - off.y - drop, p.pz - off.z);
+}
+
+// ---------- builders ----------
+function tensorVal(t, g, c, r, col){
+  if (!t) return 0;
+  return g.type === "vol" ? t[c][r][col] : g.type === "grid" ? t[r][col] : t[r];
+}
+const geoBox = new T.BoxGeometry(0.1, CELL*0.88, CELL*0.88);
+const geoSphere = new T.SphereGeometry(CELL*0.38, 14, 10);
+const matCell = new T.MeshBasicMaterial();
+
+function makeCells(items, geo){
+  const mesh = new T.InstancedMesh(geo, matCell, items.length), m = new T.Matrix4();
+  items.forEach((it, k) => { m.setPosition(it.p); mesh.setMatrixAt(k, m); mesh.setColorAt(k, it.c); });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  return mesh;
+}
+function outline(cx, cy, cz, sx, sy, sz, color, lw){
+  const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(sx, sy, sz)),
+                               new T.LineBasicMaterial({color}));
+  e.position.set(cx, cy, cz); return e;
+}
+const gateCache = {};
+function gateTexture(label){
+  if (gateCache[label]) return gateCache[label];
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const x = c.getContext("2d");
+  x.fillStyle = "rgba(255,152,0,0.12)"; x.fillRect(0,0,128,128);
+  x.strokeStyle = "#ff9800"; x.lineWidth = 4; x.strokeRect(2,2,124,124);
+  x.strokeStyle = "#664"; x.lineWidth = 1; x.beginPath(); x.moveTo(10,64); x.lineTo(118,64); x.moveTo(64,10); x.lineTo(64,118); x.stroke();
+  const sg = v => 1/(1+Math.exp(-v)), L = label.toLowerCase();
+  const f = L.includes("relu") && !L.includes("leaky") ? v => Math.max(0,v)
+          : L.includes("leaky") ? v => v > 0 ? v : 0.1*v
+          : L.includes("gelu") ? v => v*sg(1.702*v) : L.includes("silu") ? v => v*sg(v)
+          : L.includes("sigmoid") ? v => 2*sg(v)-1 : L.includes("tanh") ? Math.tanh : v => v;
+  x.strokeStyle = "#ffcc80"; x.lineWidth = 3; x.beginPath();
+  for (let i = 0; i <= 100; i++){ const v = -3 + 6*i/100, px = 10 + 108*i/100, py = 64 - clamp(f(v),-3,3)*17;
+    i ? x.lineTo(px,py) : x.moveTo(px,py); }
+  x.stroke();
+  return gateCache[label] = new T.CanvasTexture(c);
+}
+
+function addSweep(n, kind){
+  const srcName = inc[n.name][0]; if (!srcName) return;
+  const src = nodeBy[srcName], a = n.attrs;
+  const arr = v => Array.isArray(v) ? v : [v, v];
+  const [kh, kw] = arr(a.kernel_size ?? 2), [sh, sw] = arr(a.stride ?? a.kernel_size ?? 2), [ph, pw] = arr(a.padding ?? 0);
+  if (src.g.type !== "vol" || n.g.type !== "vol") return;
+  const cin = kind === "conv" ? src.g.C : 1;
+  const khd = Math.max(1, kh*src.g.H/(src.tshape[1] || src.g.H)), kwd = Math.max(1, kw*src.g.W/(src.tshape[2] || src.g.W));
+  const col = new T.Color(KIND[kind].color);
+  const box = new T.Mesh(new T.BoxGeometry(cin*SLAB, khd*CELL, kwd*CELL),
+                         new T.MeshBasicMaterial({color: col, transparent: true, opacity: 0.22, depthWrite: false}));
+  const wire = outline(0,0,0, cin*SLAB, khd*CELL, kwd*CELL, col); box.add(wire);
+  const marker = outline(0,0,0, 0.18, CELL*1.05, CELL*1.05, 0xffffff);
+  const line = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(), new T.Vector3()]),
+                          new T.LineBasicMaterial({color: col, transparent: true, opacity: 0.8}));
+  world.add(box, marker, line);
+  sweeps.push({n, src, kh, kw, sh, sw, ph, pw, cin, kind, box, marker, line, W: n.g.W, H: n.g.H, C: n.g.C});
+}
+
+function refreshSweeps(){
+  sweeps.forEach(sw => world.remove(sw.box, sw.marker, sw.line));
+  sweeps = [];
+  const all = !($("easy").checked && manyNodes);
+  G.nodes.forEach(n => { if ((n.kind === "conv" || n.kind === "pool") && (all || n === sel)) addSweep(n, n.kind); });
+  needsRender = true;
+}
+
+function updateSweeps(time, on){
+  sweeps.forEach(s => {
+    s.box.visible = s.marker.visible = s.line.visible = on;
+    if (!on) return;
+    const per = s.H*s.W, step = Math.floor(time*7), idx = step % per;
+    const ch = Math.floor(step/per) % s.C;
+    const oh = Math.floor(idx / s.W), ow = idx % s.W;
+    const rc = (oh + 0.5)*(s.src.g.H/s.H) - 0.5, cc = (ow + 0.5)*(s.src.g.W/s.W) - 0.5;
+    const sg = s.src.g, inCh = s.kind === "conv" ? (s.cin-1)/2 : Math.min(ch, sg.C-1);
+    s.box.position.copy(Wp(s.src, new T.Vector3(sg.ox + inCh*SLAB, sg.oy + (sg.H-1-rc)*CELL + CELL/2, sg.oz + cc*CELL + CELL/2)));
+    s.box.quaternion.copy(s.src.grp.quaternion);
+    const out = Wp(s.n, cellPos(s.n, ch, oh, ow));
+    s.marker.position.copy(out); s.marker.quaternion.copy(s.n.grp.quaternion);
+    const p = s.line.geometry.attributes.position;
+    p.setXYZ(0, s.box.position.x, s.box.position.y, s.box.position.z); p.setXYZ(1, out.x, out.y, out.z);
+    p.needsUpdate = true;
+  });
+}
+
+function metricValue(n, m){
+  const a = A && A.acts[n.actKey || n.name];
+  switch (m){
+    case "params": return n.params > 0 ? n.params : null;
+    case "flops": return n.flops > 0 ? n.flops : null;
+    case "size": return n.numel;
+    case "sparsity": return a && a.stats ? a.stats.sparsity : null;
+    case "mean_abs": return a && a.stats ? a.stats.mean_abs : null;
+    case "residual": return a && a.delta != null ? a.delta : null;
+  }
+  return null;
+}
+const METRIC_LOG = {params: true, flops: true, size: true, mean_abs: true, residual: true, sparsity: false};
+function computeMetricRange(){
+  const m = $("metric").value;
+  metricRange = null;
+  if (m === "type") return;
+  const vals = G.nodes.map(n => metricValue(n, m)).filter(v => v != null && isFinite(v));
+  if (!vals.length) return;
+  const f = METRIC_LOG[m] ? (v => Math.log10(Math.max(v, 1e-9))) : (v => v);
+  metricRange = {m, f, lo: Math.min(...vals.map(f)), hi: Math.max(...vals.map(f)), raw: [Math.min(...vals), Math.max(...vals)]};
+}
+function rampColor(t){
+  const S = [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]], x = t*4, i = Math.min(3, Math.floor(x)), f = x - i;
+  return new T.Color(lerp(S[i][0], S[i+1][0], f)/255, lerp(S[i][1], S[i+1][1], f)/255, lerp(S[i][2], S[i+1][2], f)/255);
+}
+function metricColor(n){
+  if (!metricRange) return null;
+  const v = metricValue(n, metricRange.m);
+  if (v == null || !isFinite(v)) return new T.Color(0x3a3a46);
+  return rampColor(clamp((metricRange.f(v) - metricRange.lo) / (metricRange.hi - metricRange.lo + 1e-9), 0, 1));
+}
+
+function buildNode(n, acts, showAct){
+  const k = KIND[n.kind], g = n.g, a = acts && acts[n.actKey || n.name];
+  const t = a && a.tensor;
+  const items = []; let mx = 1e-6;
+  const get = (c,r,col) => showAct ? tensorVal(t, g, c, r, col) : 0;
+  if (showAct && t) { const f = JSON.stringify; mx = Math.max(1e-6, ...(t.flat(3).map(Math.abs))); }
+  for (let c = 0; c < g.C; c++) for (let r = 0; r < g.H; r++) for (let col = 0; col < g.W; col++)
+    items.push({p: cellPos(n, c, r, col), c: showAct && t ? divColor(get(c,r,col)/mx) : divColor(0)});
+  n.grp.add(makeCells(items, g.type === "vec" && n.kind !== "output" ? geoSphere : geoBox));
+  const cx = g.ox + (g.C-1)*SLAB/2, cy = g.oy + g.sy/2, cz = g.oz + g.sz/2;
+  const pad = n.kind === "norm" ? 0.45 : 0.15;
+  const mcol = metricColor(n), ocol = mcol || new T.Color(k.color);
+  n.grp.add(outline(cx, cy, cz, g.sx + pad + 0.1, g.sy + pad, g.sz + pad, ocol));
+  if (n.kind === "norm") n.grp.add(outline(cx, cy, cz, g.sx + 0.1, g.sy + 0.2, g.sz + 0.2, ocol));
+  if (n.kind === "group") n.grp.add(outline(cx, cy, cz, g.sx + 0.9, g.sy + 0.9, g.sz + 0.9, ocol));
+  if (mcol){
+    const halo = new T.Mesh(new T.BoxGeometry(g.sx + 0.5, g.sy + 0.5, g.sz + 0.5),
+                            new T.MeshBasicMaterial({color: mcol, transparent: true, opacity: 0.22, depthWrite: false}));
+    halo.position.set(cx, cy, cz); n.grp.add(halo);
+  }
+
+  if (n.kind === "activation"){
+    const plate = new T.Mesh(new T.PlaneGeometry(g.sz + 0.8, g.sy + 0.8),
+      new T.MeshBasicMaterial({map: gateTexture(n.label), transparent: true, opacity: 0.9, side: T.DoubleSide, depthWrite: false}));
+    plate.rotation.y = -Math.PI/2;   // faces the input side; curve reads left→right looking along the flow
+    plate.position.set(g.ox - 0.55, cy, cz);
+    n.grp.add(plate);
+  }
+  if (n.headPlanes) buildAttention(n, a, showAct);
+  if (n.moe){
+    const M = showAct && a && a.gates, E = M ? M[0].length : Math.min(n.moe, 32), Tn = g.H, zc = n.b.oz + n.b.sz/2;
+    const mx = M ? Math.max(1e-6, ...M.flat()) : 1, items = [];
+    for (let r = 0; r < Tn; r++) for (let c = 0; c < E; c++)
+      items.push({p: new T.Vector3(n.b.ox, (Tn-1-r)*CELL - Tn*CELL/2 + CELL/2, zc - E*CELL/2 + c*CELL + CELL/2),
+                  c: divColor(M ? M[r][c]/mx : 0)});
+    n.grp.add(makeCells(items, geoBox));
+    n.grp.add(outline(n.b.ox, 0, zc, 0.12, Tn*CELL + 0.15, E*CELL + 0.15, new T.Color(k.color)));
+    addLabel(n, "router: tokens × experts", new T.Vector3(n.b.ox, Tn*CELL/2 + 0.9, zc), "#e6ee9c", "", true);
+  }
+  if (n.kind === "output"){
+    if (n.units === G.classes.length && n.g.H === n.units) G.classes.forEach((c, i) => addLabel(n, c, cellPos(n, 0, i, 0).add(new T.Vector3(0, 0, 0.9)), "#ccc", "", true));
+  }
+  // picking proxy
+  const pk = new T.Mesh(new T.BoxGeometry(n.b.sx + 0.5, n.b.sy + 0.5, n.b.sz + 0.5),
+                        new T.MeshBasicMaterial({visible: false}));
+  pk.position.set(n.b.ox + n.b.sx/2 - 0.2, n.b.oy + n.b.sy/2, n.b.oz + n.b.sz/2);
+  pk.userData.node = n; n.grp.add(pk); pickers.push(pk);
+  addLabel(n, n.name, new T.Vector3(n.b.ox + n.b.sx/2, n.b.oy + n.b.sy + 0.5, n.b.oz + n.b.sz/2), k.color,
+           `${n.label} · [${n.tshape.join("×")}]${n.sampled ? "*" : ""}` + (n.headPlanes ? (() => {
+             const tot = n.attrs.heads || n.attrs.num_heads || n.headPlanes;
+             return ` · ${tot} heads` + (n.attrs.kv_heads && n.attrs.kv_heads !== tot ? ` / ${n.attrs.kv_heads} KV` : "") +
+                    (n.attrs.window ? ` · window ${n.attrs.window}` : "") + (tot > n.headPlanes ? ` (${n.headPlanes} shown)` : ""); })() : "") +
+           (n.moe ? ` · ${n.attrs.num_experts} experts, top-${n.attrs.top_k}` : ""), false, n);
+}
+
+function buildAttention(n, a, showAct){
+  const g = n.g, b = n.b, att = n.att, Tn = g.H, D = g.W, H = n.heads, dh = D/H, grp = n.grp;
+  const zmid = b.oz + b.sz/2, qkv = showAct && a && a.qkv, hm = showAct && a && a.attn;
+  const kc = new T.Color(KIND.attention.color), hc = h => new T.Color(HEADCOL[h % HEADCOL.length]);
+  const laneZ = l => zmid + (l-1)*(g.sz + att.gap);
+  const colZ = (zc, hh) => zc - D*CELL/2 + (hh*dh + dh/2)*CELL;     // centre of head hh's columns
+  const items = (M, x, zc, rows, cols) => {
+    const mx = M ? Math.max(1e-6, ...M.flat().map(Math.abs)) : 1, out = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+      out.push({p: new T.Vector3(x, (rows-1-r)*CELL - rows*CELL/2 + CELL/2, zc - cols*CELL/2 + c*CELL + CELL/2),
+                c: divColor(M ? M[r][c]/mx : 0)});
+    return out;
+  };
+  const block = (M, x, zc, rows, cols, thick, headCols) => {
+    grp.add(makeCells(items(M, x, zc, rows, cols), geoBox));
+    grp.add(outline(x, 0, zc, thick, rows*CELL + 0.15, cols*CELL + 0.15, kc));
+    if (headCols) for (let h = 0; h < H; h++)
+      grp.add(outline(x, 0, colZ(zc, h), thick + 0.1, rows*CELL + 0.35, dh*CELL, hc(h)));
+  };
+  const lbl = (text, x, zc, y) => addLabel(n, text, new T.Vector3(x, y ?? (Tn*CELL/2 + 0.9), zc), "#d1a8e0", "", true);
+  const qx = b.ox + att.qx, cx = b.ox + att.cx;
+  [["q", "Q = X·W_q"], ["k", "K = X·W_k"], ["v", "V = X·W_v"]].forEach(([key, text], l) => {
+    block(qkv && qkv[key], qx, laneZ(l), Tn, D, 0.12, true);
+    lbl(text, qx, laneZ(l));
+  });
+  for (let h = 0; h < H; h++){
+    const x = b.ox + att.hx + h*SLAB;
+    block(hm && hm[h], x, zmid, Tn, Tn, 0.12, false);
+    grp.add(outline(x, 0, zmid, 0.2, Tn*CELL + 0.3, Tn*CELL + 0.3, hc(h)));
+  }
+  lbl("softmax(Q·Kᵀ/√d) per head", b.ox + att.hx + H*SLAB/2, zmid, Tn*CELL/2 + 1.6);
+  block(qkv && qkv.ctx, cx, zmid, Tn, D, 0.12, true);
+  lbl("A·V (heads concat) → W_o", cx, zmid);
+  // data flow inside the block, one colour per head
+  for (let h = 0; h < H; h++){
+    const pts = [], P = new T.Vector3(b.ox + att.hx + h*SLAB, 0, zmid);
+    const q = new T.Vector3(qx + 0.1, 0, colZ(laneZ(0), h)), k = new T.Vector3(qx + 0.1, 0, colZ(laneZ(1), h));
+    const v = new T.Vector3(qx + 0.1, 0, colZ(laneZ(2), h)), c = new T.Vector3(cx - 0.1, 0, colZ(zmid, h));
+    [[q, P], [k, P], [P, c], [v, c]].forEach(([u, w]) => pts.push(u.x, u.y, u.z, w.x, w.y, w.z));
+    const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
+    grp.add(new T.LineSegments(geo, new T.LineBasicMaterial({color: hc(h), transparent: true, opacity: 0.55})));
+  }
+}
+
+function addLabel(n, text, pos, color, sub, small, node){
+  pos = Wp(n, pos);
+  const d = document.createElement("div"); d.className = "lb";
+  d.innerHTML = `<b style="color:${color};${small?"font-size:11px;font-weight:500":""}">${text}</b>${sub ? `<span>${sub}</span>` : ""}`;
+  document.getElementById("labels").appendChild(d);
+  labels.push({d, pos, node});
+}
+
+const dispUnits = n => n.g.type === "vol" ? n.g.C : n.g.type === "grid" ? n.g.W : n.g.H;
+function buildEdges(showW){
+  const flow = [], unit = [], unitCol = [], skip = [], skipEdges = [];
+  const order = {}; G.nodes.forEach((n, i) => order[n.name] = i);
+  const bIdx = G.analysis && G.analysis.bottleneck ? order[G.rep[G.analysis.bottleneck]] : null;
+  const spineSet = new Set(G.analysis ? G.analysis.spine.map(nm => G.rep[nm]) : []);
+  const push = (arr, p) => arr.push(p.x, p.y, p.z);
+  const easy = $("easy").checked, thin = easy && manyNodes;
+  const addU = (p, q, w, ident) => {
+    if (!ident && thin && Math.abs(w) < 0.25) return;      // keep only the strong weights
+    push(unit, p); push(unit, q);
+    const al = ident ? 0.35 : 0.12 + 0.88*Math.abs(w);
+    const c = ident ? [0.6,0.65,0.75] : (w >= 0 ? [1,1,1] : [1,0.31,0.64]);
+    unitCol.push(c[0]*al, c[1]*al, c[2]*al, c[0]*al, c[1]*al, c[2]*al);
+  };
+  G.edges.forEach(e => {
+    const a = nodeBy[e.src], b = nodeBy[e.dst], ga = a.g, gb = b.g;
+    const pa = Wp(a, new T.Vector3(ga.ox + ga.sx, ga.oy + ga.sy/2, ga.oz + ga.sz/2));
+    const pb = Wp(b, new T.Vector3(b.b.ox, gb.oy + gb.sy/2, gb.oz + gb.sz/2));
+    if (e.skip){
+      const p0 = Wp(a, new T.Vector3(ga.ox + ga.sx/2, ga.oy + ga.sy + 0.3, ga.oz + ga.sz/2));
+      const p2 = Wp(b, new T.Vector3(b.b.ox + b.b.sx/2, gb.oy + gb.sy + 0.3, gb.oz + gb.sz/2));
+      // long arcs (spiral / folded layouts) must visibly arch over the model instead of reading as straight chords
+      const mid = p0.clone().add(p2).multiplyScalar(0.5); mid.y += 6 + p0.distanceTo(p2)*0.28;
+      // only concatenation skips are "bypassing" the bottleneck; adds fed from a side branch (e.g. the timestep
+      // embedding) are conditioning, not information shortcuts
+      const crosses = e.join === "cat" && bIdx != null && order[e.src] < bIdx && bIdx < order[e.dst];
+      skipEdges.push({curve: new T.QuadraticBezierCurve3(p0, mid, p2), join: e.join || "add", ch: a.units, crosses,
+                      side: !spineSet.has(e.src), src: e.src, dst: e.dst});
+      return;
+    }
+    push(flow, pa); push(flow, pb);
+    if (!showW) return;
+    if (b.headPlanes && b.weights.qkv[0].length === a.g.W){              // X -> Q,K,V (real W_q,W_k,W_v) and ctx -> out (W_o)
+      const att = b.att, D = b.g.W, Wq = b.weights.qkv, Wo = b.weights.o;
+      const mx = Math.max(1e-9, ...Wq.flat().map(Math.abs), ...Wo.flat().map(Math.abs));
+      const zmid = b.b.oz + b.b.sz/2, laneZ = l => zmid + (l-1)*(b.g.sz + att.gap);
+      for (let l = 0; l < 3; l++) for (let j = 0; j < D; j++) for (let i = 0; i < Wq[0].length; i++)
+        addU(Wp(a, unitPos(a, i)), Wp(b, new T.Vector3(b.b.ox + att.qx, 0, laneZ(l) - D*CELL/2 + j*CELL + CELL/2)),
+             Wq[l*D + j][i]/mx, false);
+      for (let i = 0; i < D; i++) for (let j = 0; j < D; j++)
+        addU(Wp(b, new T.Vector3(b.b.ox + att.cx, 0, zmid - D*CELL/2 + i*CELL + CELL/2)), Wp(b, unitPos(b, j)), Wo[j][i]/mx, false);
+      return;
+    }
+    if (e.mode === "dense"){
+      const lim = easy ? (b.units > 256 ? 40 : 150) : 600;      // e.g. the 1000-way classifier head
+      e.sparse.slice(0, lim).forEach(([i,j,w]) => addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,j)), w, false));
+    } else if (e.mode === "identity" && !thin) for (let i = 0; i < Math.min(dispUnits(a), dispUnits(b)); i++) addU(Wp(a, unitPos(a,i)), Wp(b, unitPos(b,i)), 0, true);
+  });
+  G.skipCurves = skipEdges;                                  // kept for the selection highlight
+  const mk = (arr, mat) => { const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(arr, 3)); return [geo, new T.LineSegments(geo, mat)]; };
+  world.add(mk(flow, new T.LineBasicMaterial({color: 0x556070, transparent: true, opacity: 0.8}))[1]);
+  const JC = {cat: 0x4dd0e1, add: 0xffffff, mul: 0xffb74d, bypass: 0xffd54f, side: 0xb39ddb};
+  const arcKey = sk => sk.crosses ? "bypass" : sk.join === "cat" ? "cat" : sk.side ? "side" : (sk.join === "mul" ? "mul" : "add");
+  if (skipEdges.length <= 60){
+    skipEdges.forEach(sk => {
+      const r = clamp(0.05 + 0.03*Math.log2(Math.max(2, sk.ch)), 0.06, 0.32);
+      world.add(new T.Mesh(new T.TubeGeometry(sk.curve, 40, sk.crosses ? r*1.4 : r, 6, false),
+        new T.MeshBasicMaterial({color: JC[arcKey(sk)], transparent: true, opacity: 0.8})));
+    });
+  } else {
+    const by = {};
+    skipEdges.forEach(sk => { const a2 = (by[arcKey(sk)] ||= []), pts = sk.curve.getPoints(24);
+      for (let i = 0; i < pts.length-1; i++){ push(a2, pts[i]); push(a2, pts[i+1]); } });
+    Object.entries(by).forEach(([j, arr]) => world.add(mk(arr, new T.LineBasicMaterial({color: JC[j] || 0xffffff, transparent: true, opacity: 0.55}))[1]));
+  }
+  if (unit.length){
+    const [geo, l] = mk(unit, new T.LineBasicMaterial({vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false}));
+    geo.setAttribute("color", new T.Float32BufferAttribute(unitCol, 3)); world.add(l);
+  }
+}
+
+// selecting a layer / block lights up its skip connections and outlines the layer at the other end of each one
+let hlObjs = [], hlLabels = [];
+const HLCOL = 0x76ff03;
+function clearHighlight(){
+  hlObjs.forEach(o => { if (o.parent) o.parent.remove(o); if (o.geometry) o.geometry.dispose(); });
+  hlLabels.forEach(l => { l.d.remove(); const i = labels.indexOf(l); if (i >= 0) labels.splice(i, 1); });
+  hlObjs = []; hlLabels = [];
+}
+function refreshHighlight(){
+  clearHighlight();
+  needsRender = true;
+  if (!sel || !G.skipCurves || folding) return;
+  const seen = new Set();
+  G.skipCurves.filter(s => s.src === sel.name || s.dst === sel.name).forEach(s => {
+    const tube = new T.Mesh(new T.TubeGeometry(s.curve, 48, 0.3, 8, false),
+                            new T.MeshBasicMaterial({color: HLCOL, depthTest: false, transparent: true}));
+    tube.renderOrder = 10; world.add(tube); hlObjs.push(tube);
+    const p = nodeBy[s.src === sel.name ? s.dst : s.src];
+    if (!p || p === sel || seen.has(p.name)) return;
+    seen.add(p.name);
+    const b = p.b, box = outline(b.ox + b.sx/2, b.oy + b.sy/2, b.oz + b.sz/2, b.sx + 1, b.sy + 1, b.sz + 1, HLCOL);
+    box.material.depthTest = false; box.renderOrder = 10;
+    p.grp.add(box); hlObjs.push(box);
+    addLabel(p, `↔ ${s.join === "cat" ? "concat" : "add"} skip ${s.src === sel.name ? "to" : "from"} ${sel.name}`,
+             new T.Vector3(b.ox + b.sx/2, b.oy + b.sy + 1.6, b.oz + b.sz/2), "#76ff03", "", true, p);
+    const l = labels[labels.length - 1]; l.always = true; hlLabels.push(l);
+  });
+}
+
+// bake every node's cells and outlines into one instanced mesh per geometry + one line buffer
+function mergeStatic(){
+  world.updateMatrixWorld(true);
+  const inst = new Map(), lp = [], lc = [];
+  const m = new T.Matrix4(), c = new T.Color(), v = new T.Vector3();
+  G.nodes.forEach(n => {
+    [...n.grp.children].forEach(o => {
+      if (o.isInstancedMesh){
+        let e = inst.get(o.geometry); if (!e) inst.set(o.geometry, e = {mats: [], cols: []});
+        for (let k = 0; k < o.count; k++){
+          o.getMatrixAt(k, m); m.premultiply(o.matrixWorld);
+          e.mats.push(m.clone()); e.cols.push(c.fromArray(o.instanceColor.array, k*3).clone());
+        }
+        n.grp.remove(o); o.dispose();
+      } else if (o.isLineSegments && !o.material.vertexColors && !o.material.transparent){
+        const pos = o.geometry.attributes.position, col = o.material.color;
+        for (let k = 0; k < pos.count; k++){
+          v.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld); lp.push(v.x, v.y, v.z); lc.push(col.r, col.g, col.b);
+        }
+        n.grp.remove(o); o.geometry.dispose();
+      }
+    });
+  });
+  inst.forEach((e, geo) => {
+    const mesh = new T.InstancedMesh(geo, matCell, e.mats.length);
+    e.mats.forEach((mm, i) => { mesh.setMatrixAt(i, mm); mesh.setColorAt(i, e.cols[i]); });
+    mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; mesh.frustumCulled = false;
+    world.add(mesh);
+  });
+  if (lp.length){
+    const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.Float32BufferAttribute(lp, 3));
+    geo.setAttribute("color", new T.Float32BufferAttribute(lc, 3));
+    const l = new T.LineSegments(geo, new T.LineBasicMaterial({vertexColors: true}));
+    l.frustumCulled = false; world.add(l);
+  }
+}
+
+function buildAnalysis(){
+  visSpine = [];
+  const an = G.analysis;
+  if (!an) return;
+  const rep_ = G.rep, vis = [];
+  an.spine.forEach(nm => { const v = nodeBy[rep_[nm]]; if (v && vis[vis.length - 1] !== v) vis.push(v); });
+  if (vis.length < 2) return;
+  visSpine = vis;
+  const cen = v => Wp(v, new T.Vector3(v.b.ox + v.b.sx/2, v.b.oy + v.b.sy/2, v.b.oz + v.b.sz/2));
+  const P = vis.map(cen), logs = vis.map(v => Math.log10(Math.max(1, v.numel)));
+  const lo = Math.min(...logs), hi = Math.max(...logs);
+  const R = logs.map(l => 1.6 + 5.2*(l - lo)/(hi - lo + 1e-9));
+  const tang = i => { const a = P[Math.max(0, i-1)], b = P[Math.min(P.length-1, i+1)]; return b.clone().sub(a).normalize(); };
+  const dists = []; for (let i = 0; i < P.length-1; i++) dists.push(P[i].distanceTo(P[i+1]));
+  const med = dists.slice().sort((a, b) => a - b)[dists.length >> 1] || 1, maxJump = 2.6*med + 12;
+
+  if ($("showenv").checked){
+    // follow a smooth curve through the stations (a straight polyline cuts corners on a spiral / folded layout)
+    const SUB = P.length > 2 ? 8 : 1, SEG = 24, S = [], RS = [], segOf = [];
+    if (P.length > 2){
+      const curve = new T.CatmullRomCurve3(P, false, "centripetal");
+      const total = (P.length - 1)*SUB;
+      for (let j = 0; j <= total; j++){
+        S.push(curve.getPoint(j/total));
+        const f = j/SUB, i0 = Math.min(P.length - 2, Math.floor(f)), u = f - i0;
+        RS.push(lerp(R[i0], R[i0 + 1], u)); segOf.push(i0);
+      }
+    } else P.forEach((p, i) => { S.push(p); RS.push(R[i]); segOf.push(Math.min(i, P.length - 2)); });
+    const tangS = j => S[Math.min(S.length - 1, j + 1)].clone().sub(S[Math.max(0, j - 1)]).normalize();
+    const pos = [], idxs = [], wire = [];
+    S.forEach((p, j) => {
+      const t = tangS(j), up = Math.abs(t.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
+      const u = new T.Vector3().crossVectors(t, up).normalize(), w = new T.Vector3().crossVectors(t, u).normalize();
+      for (let k = 0; k < SEG; k++){
+        const th = k/SEG*Math.PI*2, q = p.clone().addScaledVector(u, Math.cos(th)*RS[j]).addScaledVector(w, Math.sin(th)*RS[j]);
+        pos.push(q.x, q.y, q.z);
+      }
+    });
+    for (let j = 0; j < S.length - 1; j++){
+      if (dists[segOf[j]] > maxJump) continue;
+      for (let k = 0; k < SEG; k++){
+        const a1 = j*SEG + k, b1 = j*SEG + (k+1) % SEG, c1 = (j+1)*SEG + k, d1 = (j+1)*SEG + (k+1) % SEG;
+        idxs.push(a1, b1, c1, b1, d1, c1);
+      }
+    }
+    for (let j = 0; j < S.length; j += (P.length > 2 ? SUB : 1)) for (let k = 0; k < SEG; k++){   // rings only at the stations
+      const a1 = (j*SEG + k)*3, b1 = (j*SEG + (k+1) % SEG)*3;
+      wire.push(pos[a1], pos[a1+1], pos[a1+2], pos[b1], pos[b1+1], pos[b1+2]);
+    }
+    const g1 = new T.BufferGeometry();
+    g1.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g1.setIndex(idxs);
+    world.add(new T.Mesh(g1, new T.MeshBasicMaterial({color: 0x6aa6ff, transparent: true, opacity: 0.07, side: T.DoubleSide, depthWrite: false})));
+    const g2 = new T.BufferGeometry(); g2.setAttribute("position", new T.Float32BufferAttribute(wire, 3));
+    world.add(new T.LineSegments(g2, new T.LineBasicMaterial({color: 0x6aa6ff, transparent: true, opacity: 0.22})));
+  }
+
+  const bn = an.bottleneck && nodeBy[rep_[an.bottleneck]];
+  if (bn){
+    const i = vis.indexOf(bn);
+    if (i >= 0){
+      const ring = new T.Mesh(new T.TorusGeometry(R[i] + 0.7, 0.14, 12, 56), new T.MeshBasicMaterial({color: 0xffd54f}));
+      ring.position.copy(P[i]); ring.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), tang(i));
+      world.add(ring);
+    }
+    const ratio = an.compression != null ? (an.compression >= 1 ? `${an.compression.toFixed(1)}× the input` : `${(1/an.compression).toFixed(1)}× smaller than the input`) : "";
+    addLabel(bn, "◆ bottleneck (deepest level)", new T.Vector3(bn.b.ox + bn.b.sx/2, bn.b.oy + bn.b.sy + 2.4, bn.b.oz + bn.b.sz/2), "#ffd54f",
+             `${bn.tshape.join("×")} = ${bn.numel.toLocaleString()} values · ${ratio}` + (an.spatial_ratio > 1.5 ? ` · ${Math.round(an.spatial_ratio)}× smaller spatially` : "") + (an.stochastic ? " · stochastic latent z = μ + σ·ε" : "") +
+             (an.bypass.count ? ` · ${an.bypass.count} skip links (${an.bypass.channels} ch) bypass it` : ""), false, bn);
+  }
+  const used = new Set();
+  (an.stages || []).forEach(st => {
+    const v = st.nodes.map(nm => nodeBy[rep_[nm]]).find(x => x);
+    if (!v || used.has(v.name) || st.name === "bottleneck") return;
+    used.add(v.name);
+    const col = st.name === "bottleneck" ? "#ffd54f" : st.name.startsWith("E") ? "#90caf9" : st.name.startsWith("D") ? "#a5d6a7" : "#b0bec5";
+    addLabel(v, st.name + (st.hw ? ` · ${st.hw.join("×")}` : ""), new T.Vector3(v.b.ox + v.b.sx/2, v.b.oy + v.b.sy + 3.2, v.b.oz + v.b.sz/2), col, "", true, v);
+  });
+  (an.pairs || []).forEach(([e1, d1]) => {
+    const a = nodeBy[rep_[e1]], b = nodeBy[rep_[d1]];
+    if (!a || !b || a === b) return;
+    const geo = new T.BufferGeometry().setFromPoints([cen(a), cen(b)]);
+    const l = new T.Line(geo, new T.LineDashedMaterial({color: 0x90caf9, transparent: true, opacity: 0.25, dashSize: 1.2, gapSize: 1.2}));
+    l.computeLineDistances(); world.add(l);
+  });
+}
+
+// a coloured floor under every layer of an expanded block, so membership stays visible when unfolded
+function buildBlockFloors(){
+  if (!$("showfloor").checked) return;
+  const pad = (n, floorY, col) => {
+    const len = (n.colExt || n.b.sx) + 4, wid = n.b.sz + 3, plane = new T.PlaneGeometry(len, wid);
+    const mesh = new T.Mesh(plane, new T.MeshBasicMaterial({color: col, transparent: true, opacity: 0.16, side: T.DoubleSide, depthWrite: false}));
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.set(n.colCx ?? (n.b.ox + n.b.sx/2), floorY, n.b.oz + n.b.sz/2);
+    n.grp.add(mesh);
+    const edge = new T.LineSegments(new T.EdgesGeometry(plane), new T.LineBasicMaterial({color: col, transparent: true, opacity: 0.55}));
+    edge.rotation.x = -Math.PI/2; edge.position.copy(mesh.position);
+    n.grp.add(edge);
+  };
+  const blocks = new Map();
+  G.nodes.forEach(n => { if (n.block && n.kind !== "group") (blocks.get(n.block) || blocks.set(n.block, []).get(n.block)).push(n); });
+  blocks.forEach((ms, id) => {
+    if (ms.length < 2) return;
+    const col = new T.Color(G.blockColors[id] || FLOORCOL[0]);
+    const floorY = Math.min(...ms.map(n => n.b.oy)) - 0.8;
+    ms.forEach(n => pad(n, floorY, col));
+    const first = ms[0];
+    addLabel(first, `${id} · ${ms.length} layers`, new T.Vector3(first.colCx ?? first.b.ox, floorY + 0.4, first.b.oz + first.b.sz + 1.2),
+             "#" + col.getHexString(), "", true, first);
+  });
+  G.nodes.forEach(n => {                       // a collapsed block keeps the colour of its expanded floor
+    if (n.kind !== "group") return;
+    pad(n, n.b.oy - 0.8, new T.Color(G.blockColors[n.name] || FLOORCOL[0]));
+  });
+}
+
+// a vertical ruler left of the model (line layout): one tick per resolution level, faint guides along the model
+function buildDepthRuler(){
+  G.rulerBox = null;
+  if (!G.depthOn || $("layout").value !== "line") return;
+  const lv = G.levels, step = G.levelStep, c0 = G.cols[0];
+  const x0 = c0.cx - c0.ext/2 - 7, zb = -Math.max(...G.cols.map(c => c.zext))/2 - 3, top = G.nodes.reduce((a, n) => Math.max(a, n.b.sy), 0)/2 + 1;
+  const ybot = -(lv.length - 1)*step, bn = G.analysis && G.analysis.bottleneck && nodeBy[G.rep[G.analysis.bottleneck]];
+  const bl = bn ? bn.level : null;
+  const pts = [], guide = [];
+  const seg = (a, p, q) => a.push(p[0], p[1], p[2], q[0], q[1], q[2]);
+  seg(pts, [x0, top, 0], [x0, ybot - top, 0]);
+  const add3 = (arr, mat) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(arr, 3));
+    const l = new T.LineSegments(g, mat); l.frustumCulled = false; world.add(l); return l; };
+  const head = document.createElement("div"); head.className = "lb rl";
+  head.innerHTML = `<b style="color:#b0bec5;font-size:11px;font-weight:500">Depth · resolution level</b><span>Lower = more downsampled</span>`;
+  $("labels").appendChild(head); labels.push({d: head, pos: new T.Vector3(x0 - 1.2, top + 2.5, 0), node: null, always: true});
+  lv.forEach(l => {
+    const y = -l.level*step, hot = l.level === bl;
+    seg(pts, [x0 - 0.8, y, 0], [x0 + 0.8, y, 0]);
+    seg(guide, [x0, y, zb], [G.totalLen, y, zb]);
+    const d = document.createElement("div"); d.className = "lb rl";
+    const col = hot ? "#ffd54f" : "#b0bec5";
+    d.innerHTML = `<b style="color:${col};font-size:11px;font-weight:500">${hot ? "◆ " : ""}L${l.level} · ${l.hw[0]}×${l.hw[1]}</b>` +
+      `<span>${l.ch ? (l.ch[0] === l.ch[1] ? l.ch[0] : l.ch[0] + "–" + l.ch[1]) + " ch · " : ""}${l.count} layers${hot ? " · bottleneck" : ""}</span>`;
+    $("labels").appendChild(d); labels.push({d, pos: new T.Vector3(x0 - 1.2, y, 0), node: null, always: true});
+  });
+  G.rulerBox = new T.Box3(new T.Vector3(x0 - Math.max(16, 0.12*G.totalLen), ybot - top, zb), new T.Vector3(x0, top + 3, 0));
+  add3(pts, new T.LineBasicMaterial({color: 0x90a4ae}));
+  add3(guide, new T.LineBasicMaterial({color: 0x90a4ae, transparent: true, opacity: 0.18}));
+}
+
+// ---------- tensor-size profile (bottom chart) ----------
+let profHover = -1, profGeom = null;
+const fmtCount = n => n >= 1e9 ? +(n/1e9).toPrecision(3) + "B" : n >= 1e6 ? +(n/1e6).toPrecision(3) + "M" : n >= 1e3 ? +(n/1e3).toPrecision(3) + "K" : String(Math.round(n));
+function renderProfile(){
+  const card = $("profcard"), cv_ = $("profile"), vs = visSpine || [];
+  card.hidden = vs.length < 3; if (card.hidden){ profGeom = null; return; }
+  const dpr = Math.min(devicePixelRatio || 1, 2), W_ = cv_.clientWidth, H_ = cv_.clientHeight;
+  if (!W_) return;
+  if (cv_.width !== Math.round(W_*dpr) || cv_.height !== Math.round(H_*dpr)){ cv_.width = Math.round(W_*dpr); cv_.height = Math.round(H_*dpr); }
+  const c = cv_.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W_, H_);
+  const BP = document.documentElement.dataset.theme === "blueprint";
+  const P = BP ? {grid: "rgba(234,244,255,.14)", axis: "rgba(234,244,255,.5)", text: "#a9c4e2", line: "#ffffff", fill: "255,255,255"}
+               : {grid: "#1e1e28", axis: "#3a3a48", text: "#8a8a96", line: "#5cdcff", fill: "92,220,255"};
+  const ls = vs.map(v => Math.log10(Math.max(1, v.numel)));
+  let lo = Math.floor(Math.min(...ls)), hi = Math.ceil(Math.max(...ls)); if (hi === lo) hi = lo + 1;
+  const L = 40, R = 10, Tp = 8, B = 20, pw = W_ - L - R, ph = H_ - Tp - B;
+  const X = i => L + pw * i/(vs.length - 1), Y = l => Tp + ph * (1 - (l - lo)/(hi - lo));
+  c.font = "10px system-ui,Segoe UI,sans-serif"; c.textBaseline = "middle";
+  // y axis: one gridline per decade
+  const step = hi - lo > 6 ? 2 : 1;
+  for (let p = lo; p <= hi; p += step){
+    const y = Math.round(Y(p)) + .5;
+    c.strokeStyle = p === lo ? P.axis : P.grid; c.lineWidth = 1; c.beginPath(); c.moveTo(L, y); c.lineTo(W_ - R, y); c.stroke();
+    c.fillStyle = P.text; c.textAlign = "right"; c.fillText(fmtCount(10**p), L - 6, y);
+  }
+  // x axis: layer positions
+  c.textAlign = "center"; c.textBaseline = "top";
+  const nt = Math.max(2, Math.min(8, Math.floor(pw/70))), every = Math.max(1, Math.ceil((vs.length - 1)/nt));
+  for (let i = 0; i < vs.length; i += every){
+    const x = Math.round(X(i)) + .5; c.strokeStyle = P.axis; c.beginPath(); c.moveTo(x, Tp + ph); c.lineTo(x, Tp + ph + 4); c.stroke();
+    c.fillStyle = P.text; c.fillText(String(i + 1), x, Tp + ph + 6);
+  }
+  c.textAlign = "right"; c.fillStyle = "#5a5a68"; c.fillText("layer →", W_ - R, Tp + ph + 6);
+  // bottleneck marker
+  const an = G.analysis, bn = an && an.bottleneck && G.rep[an.bottleneck], bi = vs.findIndex(v => v.name === bn);
+  if (bi >= 0){ c.strokeStyle = "rgba(255,213,79,.55)"; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(bi), Tp); c.lineTo(X(bi), Tp + ph); c.stroke(); c.setLineDash([]); }
+  // area + line
+  const grad = c.createLinearGradient(0, Tp, 0, Tp + ph); grad.addColorStop(0, `rgba(${P.fill},.28)`); grad.addColorStop(1, `rgba(${P.fill},0)`);
+  c.beginPath(); c.moveTo(X(0), Tp + ph); vs.forEach((v, i) => c.lineTo(X(i), Y(ls[i]))); c.lineTo(X(vs.length - 1), Tp + ph); c.closePath(); c.fillStyle = grad; c.fill();
+  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.strokeStyle = P.line; c.lineWidth = 1.6; c.lineJoin = "round"; c.stroke();
+  // points, coloured by layer type (smaller when crowded)
+  const r = vs.length > pw/4 ? 1.6 : vs.length > pw/9 ? 2.4 : 3.2, selI = sel ? vs.findIndex(v => v.name === sel.name) : -1;
+  vs.forEach((v, i) => { c.beginPath(); c.arc(X(i), Y(ls[i]), r, 0, 7); c.fillStyle = (KIND[v.kind] || KIND.op).color; c.fill(); });
+  const ring = (i, col, rr) => { c.beginPath(); c.arc(X(i), Y(ls[i]), rr, 0, 7); c.strokeStyle = col; c.lineWidth = 2; c.stroke(); };
+  if (bi >= 0){ c.beginPath(); c.arc(X(bi), Y(ls[bi]), 4.5, 0, 7); c.fillStyle = "#ffd54f"; c.fill(); }
+  if (profHover >= 0 && profHover < vs.length){
+    const x = X(profHover); c.strokeStyle = "rgba(228,228,234,.35)"; c.lineWidth = 1; c.beginPath(); c.moveTo(x, Tp); c.lineTo(x, Tp + ph); c.stroke();
+    ring(profHover, "#fff", 6);
+  }
+  if (selI >= 0) ring(selI, BP ? "#fff" : "#5cdcff", 7);
+  profGeom = {X, Y, ls, L, pw, n: vs.length};
+  // header stats
+  const mn = Math.min(...vs.map(v => v.numel)), mx = Math.max(...vs.map(v => v.numel)), pk = vs.find(v => v.numel === mx);
+  $("pstat").innerHTML = `<b>${fmtCount(mn)}</b> → <b>${fmtCount(mx)}</b> values · peak <b>${pk.name}</b>` +
+    (bi >= 0 ? ` · <span class="bn">◆ bottleneck</span>` : "");
+}
+function profIndexAt(e){
+  if (!profGeom) return -1;
+  const r = $("profile").getBoundingClientRect(), x = e.clientX - r.left;
+  return clamp(Math.round((x - profGeom.L) / profGeom.pw * (profGeom.n - 1)), 0, profGeom.n - 1);
+}
+function profTip(i){
+  const tip = $("ptip");
+  if (i < 0 || !profGeom){ tip.hidden = true; return; }
+  const v = visSpine[i], k = KIND[v.kind] || KIND.op, cv_ = $("profile");
+  tip.innerHTML = `<b>${v.name}</b> <span class="k">#${i + 1}</span><br><i style="background:${k.color}"></i>${k.label} · ${v.label}<br>` +
+    `<span class="k">shape</span> [${(v.shape || []).join(" × ")}]<br><span class="k">size</span> ${v.numel.toLocaleString()} values`;
+  tip.hidden = false;
+  const x = profGeom.X(i), y = profGeom.Y(profGeom.ls[i]);
+  tip.style.left = clamp(cv_.offsetLeft + x, 90, $("profcard").clientWidth - 90) + "px";
+  tip.style.top = (cv_.offsetTop + y - 10) + "px";
+}
+
+function rebuild(){
+  computeMetricRange();
+  scene.remove(world); world = new T.Group(); scene.add(world);
+  sweeps = []; pickers = [];
+  labels.forEach(l => l.d.remove()); labels = [];
+  const showAct = document.getElementById("showact").checked && !!A;
+  G.nodes.forEach(n => { n.grp = new T.Group(); applyPose(n); world.add(n.grp); });
+  world.updateMatrixWorld(true);
+  G.nodes.forEach(n => buildNode(n, A && A.acts, showAct));
+  if (!folding){
+    buildEdges(document.getElementById("showw").checked);
+    mergeStatic();
+    buildBlockFloors();
+    buildAnalysis();
+    buildDepthRuler();
+    renderProfile();
+  }
+  refreshSweeps();
+  if (sel) labels.forEach(l => l.d.classList.toggle("sel", l.node === sel));
+  hlObjs = []; hlLabels = [];                  // the old world and its labels are gone
+  if (!folding) refreshHighlight();
+}
+
+function fit(apply){
+  world.updateMatrixWorld(true);
+  const box = new T.Box3();
+  pickers.forEach(p => box.union(new T.Box3().setFromObject(p)));   // instanced cells don't report per-instance bounds
+  if (G.rulerBox) box.union(G.rulerBox);
+  if (document.getElementById("layout").value === "line"){    // keep the model (and the depth ruler) clear of the control panel
+    const pw = $("ctl").classList.contains("closed") ? 70 : 400, f = Math.max(0.4, (innerWidth - pw)/innerWidth);
+    box.min.x -= (box.max.x - box.min.x)*(1/f - 1);
+  }
+  const size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+  const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  const mode = document.getElementById("layout").value;
+  const dir = (mode === "line" ? new T.Vector3(0, 0.3, 1) : new T.Vector3(0.0, 0.85, 0.55)).normalize();
+  const dx = (size.x/2)/Math.tan(hf/2), dz = (Math.max(size.y, mode === "line" ? 0 : size.z*0.8)/2)/Math.tan(vf/2);
+  const dist = Math.max(dx, dz)*1.05 + size.z/2;
+  const E = size.length();
+  controls.rotateSpeed = clamp(Math.sqrt(100/E), 0.15, 1);      // big models: small mouse moves must not swing the scene
+  controls.panSpeed = clamp(Math.sqrt(100/E), 0.3, 1) * 1.5;
+  controls.zoomSpeed = 1.2;
+  controls.minDistance = 1.5; controls.maxDistance = E*2.5;
+  camera.far = Math.max(2000, E*4); camera.near = Math.max(0.1, E/4000); camera.updateProjectionMatrix();
+  const res = {pos: c.clone().addScaledVector(dir, dist), target: c.clone(), dist};
+  if (apply === false) return res;                 // only compute the framing (used by fold animation)
+  controls.target.copy(c);
+  camera.position.copy(res.pos);
+  camera.lookAt(c); controls.update(); needsRender = true;
+  return res;
+}
+
+// move the orbit pivot to a layer (and optionally approach it) so rotation happens around what you look at
+let fly = null;
+function flyTo(n, approach){
+  const b = n.b, c = Wp(n, new T.Vector3(b.ox + b.sx/2, b.oy + b.sy/2, b.oz + b.sz/2));
+  const off = camera.position.clone().sub(controls.target);
+  if (approach) off.setLength(Math.max(b.sx, b.sy, b.sz)*1.8 + 6);
+  fly = {t: c, p: c.clone().add(off)};
+}
+
+// ---------- picking ----------
+const ray = new T.Raycaster(), mouse = new T.Vector2();
+let down = null;
+renderer.domElement.addEventListener("pointerdown", e => down = {x:e.clientX, y:e.clientY});
+function pickAt(x, y){
+  mouse.set(x/innerWidth*2-1, -(y/innerHeight)*2+1);
+  ray.setFromCamera(mouse, camera);
+  const h = ray.intersectObjects(pickers)[0];
+  return h ? h.object.userData.node : null;
+}
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!down || Math.abs(e.clientX-down.x) + Math.abs(e.clientY-down.y) > 4) return;
+  sel = pickAt(e.clientX, e.clientY);
+  labels.forEach(l => l.d.classList.toggle("sel", l.node === sel && !!sel));
+  if (sel) flyTo(sel, false);
+  refreshSweeps(); showPanel();
+});
+renderer.domElement.addEventListener("dblclick", e => {
+  const n = pickAt(e.clientX, e.clientY);
+  if (!n) return;
+  if (n.kind === "group") transition(() => expanded.add(n.name)); else flyTo(n, true);
+});
+document.getElementById("profile").addEventListener("mousemove", e => { const i = profIndexAt(e); if (i !== profHover){ profHover = i; renderProfile(); } profTip(i); });
+document.getElementById("profile").addEventListener("mouseleave", () => { profHover = -1; renderProfile(); profTip(-1); });
+document.getElementById("profile").addEventListener("click", e => {
+  const v = visSpine[profIndexAt(e)];
+  if (v){ sel = v; flyTo(v, true); refreshSweeps(); showPanel(); }
+});
+addEventListener("resize", () => renderProfile());
+addEventListener("keydown", e => { if (e.key === "f" || e.key === "F") fit(); });
+
+// ---------- panel ----------
+function heat(canvas, M, cell){
+  const R = M.length, C = M[0].length; canvas.width = C*cell; canvas.height = R*cell;
+  const c = canvas.getContext("2d"), mx = Math.max(1e-9, ...M.flat().map(Math.abs));
+  for (let i = 0; i < R; i++) for (let j = 0; j < C; j++){ c.fillStyle = cssDiv(M[i][j]/mx); c.fillRect(j*cell, i*cell, cell, cell); }
+}
+function showPanel(){
+  refreshHighlight(); renderProfile();
+  const p = document.getElementById("panel");
+  if (!sel){ p.style.display = "none"; return; }
+  const n = sel, k = KIND[n.kind];
+  const rows = [["Kind", k.label], ["Class", n.label], ["Output shape", `[${n.shape.join(", ")}]`],
+                ["Neurons (units)", n.units], ["Activation size", n.numel.toLocaleString() + " values"],
+                ["FLOPs (approx.)", fmtParams(n.flops).replace(" ", "") + "FLOP"],
+                ...(n.sampled ? [["Shown (sampled)", "[" + n.dshape.join("×") + "]"]] : []), ["Parameters", n.params.toLocaleString()],
+                ...Object.entries(n.attrs).map(([a,v]) => [a, Array.isArray(v) ? v.join("×") : v]),
+                ...(() => { const sk = G.edges.filter(e => e.skip && (e.src === n.name || e.dst === n.name));
+                  return sk.length ? [["Skip links", sk.map(e => `<span style="color:#76ff03">↔</span> ${e.src === n.name ? e.dst : e.src} (${e.join === "cat" ? "concat" : "add"})`).join("<br>")]] : []; })()];
+  p.innerHTML = `<h2 style="color:${k.color}">${n.name}</h2><div class="k">${n.label}</div>${describeLayer(n)}
+    <table>${rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table><div id="extras"></div>`;
+  p.style.display = "block";
+  const ex = document.getElementById("extras");
+  const add = (title, fn) => { const h = document.createElement("div"); h.className = "k"; h.style.margin = "10px 0 4px"; h.textContent = title; ex.appendChild(h); fn(); };
+  const w = n.weights;
+  if (w && w.qkv){ /* attention: projections listed below */ }
+  else if (w && n.kind === "conv"){
+    add(`Kernels [out=${w.shape[0]}, in=${w.shape[1]}, ${w.shape[2]}×${w.shape[3]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => {
+      w.data.forEach(row => { const d = document.createElement("div");
+        row.forEach(kn => { const c = document.createElement("canvas"); heat(c, kn, 8); d.appendChild(c); }); ex.appendChild(d); }); });
+  } else if (w){
+    add(`Weight matrix [out=${w.shape[0]}, in=${w.shape[1]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => { const c = document.createElement("canvas");
+      heat(c, w.data, Math.max(3, Math.min(14, 280/Math.max(w.data.length, w.data[0].length)))); ex.appendChild(c); });
+  }
+  if (w && w.qkv){
+    const D = w.o.length;
+    [["W_q", w.qkv.slice(0, D)], ["W_k", w.qkv.slice(D, 2*D)], ["W_v", w.qkv.slice(2*D)], ["W_o", w.o]].forEach(([nm, M]) =>
+      add(`${nm} [out, in]`, () => { const c = document.createElement("canvas"); heat(c, M, 14); ex.appendChild(c); }));
+  }
+  if (n.kind === "group"){
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = "Expand this block";
+    btn.onclick = () => transition(() => expanded.add(n.name)); ex.appendChild(btn);
+    add("Layers inside", () => { const d = document.createElement("div"); d.className = "k";
+      d.textContent = Object.entries(n.memberKinds).map(([k2, v]) => `${v}× ${k2}`).join(" · "); ex.appendChild(d); });
+  } else if (n.block){
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = `Collapse block "${n.block}"`;
+    btn.onclick = () => transition(() => expanded.delete(n.block)); ex.appendChild(btn);
+  }
+  const a = A && A.acts[n.actKey || n.name];
+  if (a && a.stats) add("Statistics for the current input", () => { const d = document.createElement("div");
+    d.innerHTML = `Sparsity ${(a.stats.sparsity*100).toFixed(1)} % · Mean |a| ${a.stats.mean_abs.toPrecision(3)} · Std ${a.stats.std.toPrecision(3)}` +
+      (a.delta != null ? `<br>Residual change ‖F(x)‖/‖x‖ = ${a.delta.toPrecision(3)}` : ""); ex.appendChild(d); });
+  if (a && a.gates) add("Router gates (rows = tokens, cols = experts)", () => { const c = document.createElement("canvas"); heat(c, a.gates, 10); ex.appendChild(c); });
+  if (a && a.attn) add("Attention maps (rows = query, cols = key)", () => a.attn.forEach(m => { const c = document.createElement("canvas"); heat(c, m, 10); ex.appendChild(c); }));
+  if (a && n.kind !== "input") add("Mean activation per unit", () => { const c = document.createElement("canvas"); heat(c, [a.units], 12); ex.appendChild(c); });
+}
+
+// ---------- loop ----------
+const v3 = new T.Vector3();
+function animate(t){
+  requestAnimationFrame(animate);
+  if (fly){
+    controls.target.lerp(fly.t, 0.18); camera.position.lerp(fly.p, 0.18);
+    if (controls.target.distanceTo(fly.t) < 0.05 && camera.position.distanceTo(fly.p) < 0.05) fly = null;
+    needsRender = true;
+  }
+  controls.update();
+  stepFold();
+  const animating = sweeps.length > 0 && $("showk").checked;
+  if (!needsRender && !animating) return;           // idle: no GPU work at all
+  needsRender = false;
+  updateSweeps(t/1000, $("showk").checked);
+  renderer.render(scene, camera);
+  // labels: project, then greedy collision culling in screen space (pinned / selected / hovered labels claim space first)
+  const placed = [], prio = l => (l.always ? 0 : l.node === sel && sel ? 0 : 1);
+  [...labels].sort((p, q) => prio(p) - prio(q)).forEach(l => {
+    v3.copy(l.pos).project(camera);
+    let vis = v3.z < 1 && Math.abs(v3.x) < 1.2 && Math.abs(v3.y) < 1.2 && (!manyNodes || l.always || camera.position.distanceTo(l.pos) < 70);
+    const x = (v3.x*0.5+0.5)*innerWidth, y = (-v3.y*0.5+0.5)*innerHeight;
+    if (vis && !l.always){
+      if (!l.w){ l.d.style.display = "block"; l.w = l.d.offsetWidth || 60; l.h = l.d.offsetHeight || 26; }
+      const r = [x - l.w/2 - 3, y - l.h, x + l.w/2 + 3, y];
+      if (placed.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) vis = prio(l) === 0;
+      if (vis) placed.push(r);
+    }
+    l.d.style.display = vis ? "block" : "none";
+    if (vis){ l.d.style.left = x + "px"; l.d.style.top = y + "px"; }
+  });
+}
+
+// ---------- data ----------
+const $ = id => document.getElementById(id);
+function setStatus(msg, bad){ const el = $("status"); el.textContent = msg; el.title = msg; el.style.color = bad ? "#ff6e6e" : ""; }
+function syncSeg(){ document.querySelectorAll("#layoutseg button").forEach(b => { const on = b.dataset.v === $("layout").value;
+  b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }); }
+function renderLegend(){
+  const present = new Set(G.nodes.map(n => n.kind));
+  const items = Object.entries(KIND).filter(([k]) => present.has(k) && k !== "input" && k !== "output");
+  const el = $("legend"), closed = el.classList.contains("closed");
+  el.innerHTML = `<div class="lh" id="lh"><span>Layer types in this model</span><b>${closed ? "▸" : "▾"}</b></div><div class="items">` +
+    items.map(([k, v]) => `<div class="it" title="${v.desc}"><i class="sw" style="background:${v.color}"></i><span class="nm">${v.label}</span><span class="ds">${v.desc}</span></div>`).join("") +
+    `</div><div class="foot"><span><b style="color:#5cdcff">■</b> Positive / <b style="color:#ff4fa3">■</b> negative activation</span>` +
+    `<span><b style="color:#fff">─</b> / <b style="color:#ff4fa3">─</b> Weight sign</span>` +
+    `<span title="White: x + F(x) on the main path · Lavender: a side branch added or reused later (e.g. timestep embedding) · Teal: concatenated skip · Gold: concatenated skip that jumps over the bottleneck">` +
+    `<b style="color:#fff">━</b> Residual add · <b style="color:#b39ddb">━</b> Side branch · <b style="color:#4dd0e1">━</b> Concat skip · <b style="color:#ffd54f">━</b> Bypasses bottleneck</span>` +
+    (metricRange ? `<div class="mbar"><span>${$("metric").selectedOptions[0].text}: ${fmtMetric(metricRange.raw[0])}</span><i></i><span>${fmtMetric(metricRange.raw[1])}</span></div>` : "") +
+    `<span>Click a layer · double-click a block to expand</span></div>`;
+  $("lh").onclick = () => { el.classList.toggle("closed"); renderLegend(); fitLeft(); };
+  fitLeft();
+}
+const fmtMetric = v => v >= 1000 ? fmtParams(Math.round(v)).replace(' ', '') : (v < 0.01 && v > 0 ? v.toExponential(1) : (+v.toPrecision(3)).toString());
+function fitLeft(){ document.documentElement.style.setProperty("--legend-h", ($("legend").offsetHeight || 190) + "px"); }
+
+async function loadActs(){
+  const extra = Object.entries(paramVals).map(([k, v]) => `&p_${k}=${v}`).join("");
+  A = await withLoading("Computing activations", "Running the current input through the network",
+    async () => (await fetch(`/api/activations?cls=${$("cls").value}&seed=${seed}${extra}`)).json());
+  if (A.error){ setStatus(A.error, true); A = null; return; }
+  let txt = "";
+  if (A.pred != null){
+    const nm = A.top && A.top[0] ? A.top[0].label.trim() : G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
+    const pr = A.top && A.top[0] ? A.top[0].p : A.prob;
+    txt = `→ ${nm} (${(pr*100).toFixed(0)}%)`;
+  }
+  $("pred").textContent = txt;
+  renderGallery(A.images || []);
+  rebuild(); renderLegend(); showPanel();
+}
+
+function setCard(on){
+  $("cardtoggle").checked = on;
+  $("card").style.display = on ? "block" : "none";
+  try { localStorage.setItem("nnviz.card", on ? "1" : "0"); } catch (e) {}
+}
+function renderGallery(imgs){
+  const el = $("gallery"); el.innerHTML = "";
+  imgs.forEach(im => {
+    const f = document.createElement("figure"), c = document.createElement("canvas");
+    c.width = im.w; c.height = im.h;
+    const ctx2 = c.getContext("2d"), id = ctx2.createImageData(im.w, im.h);
+    for (let p = 0; p < im.w*im.h; p++){
+      const g = im.c === 3 ? [im.data[p*3], im.data[p*3+1], im.data[p*3+2]] : [im.data[p], im.data[p], im.data[p]];
+      id.data[p*4] = g[0]; id.data[p*4+1] = g[1]; id.data[p*4+2] = g[2]; id.data[p*4+3] = 255;
+    }
+    ctx2.putImageData(id, 0, 0);
+    const cap = document.createElement("figcaption"); cap.textContent = im.name;
+    f.appendChild(c); f.appendChild(cap); el.appendChild(f);
+  });
+  // output card: what the model predicts for this input (top-5 classes, or next tokens for language models)
+  if (A && A.top && A.top.length > 1){
+    const f = document.createElement("figure"); f.className = "outcard";
+    const seq = A.top_kind === "token" || /^token #/.test(A.top[0].label);
+    f.innerHTML = `<div class="oh"><b>${seq ? "Next token" : "Prediction"}</b><span>top ${A.top.length}</span></div>` +
+      A.top.map((t, i) => `<div class="orow${i === 0 ? " top" : ""}" title="${t.label} · ${(t.p*100).toFixed(2)}%">` +
+        `<span class="ol">${t.label}</span><span class="ob"><i style="width:${Math.max(1.5, t.p*100).toFixed(1)}%"></i></span>` +
+        `<span class="op">${t.p >= .995 ? ">99" : t.p < .005 ? "<1" : (t.p*100).toFixed(0)}%</span></div>`).join("") +
+      (A.trained ? "" : A.illustrative
+        ? `<div class="onote il" title="This model runs with random weights. The output shown is what a trained model typically answers for this input; the activations in the 3D view are the real values of the random network.">Illustrative output · random weights</div>`
+        : `<div class="onote" title="This model has random weights, so its output is noise. Real behaviour needs trained weights.">⚠ Random weights: output is meaningless</div>`);
+    el.appendChild(f);
+  }
+}
+let ctrlTimer = null;
+function renderControls(){
+  const el = $("ctrls"); el.innerHTML = ""; paramVals = {};
+  (G0.controls || []).forEach(c => {
+    paramVals[c.id] = c.default;
+    const w = document.createElement("div");
+    w.innerHTML = `<div class="ct">${c.label}<span>${c.default}</span></div><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.default}">`;
+    const inp = w.querySelector("input"), val = w.querySelector("span");
+    inp.oninput = () => { paramVals[c.id] = +inp.value; val.textContent = inp.value;
+      clearTimeout(ctrlTimer); ctrlTimer = setTimeout(loadActs, 120); };
+    el.appendChild(w);
+  });
+}
+function renderScale(){
+  const ts = G0.true_scale, el = $("scale");
+  el.hidden = !ts; if (!ts) return;
+  const gb = b => b >= 1e12 ? (b/1e12).toFixed(2) + " TB" : Math.round(b/1e9) + " GB", big = n => (n/1e9).toFixed(n < 1e10 ? 2 : 1) + " B";
+  const gpus = Math.ceil(ts.bytes_bf16 * 1.2 / 80e9);   // weights + ~20% runtime overhead, on 80 GB accelerators
+  el.innerHTML = `<div class="sh"><b>True scale</b><span>${ts.org}</span></div><div class="sg">
+    <div><span>Parameters</span><b>${big(ts.params)}</b></div>
+    <div><span>Active per token</span><b>${big(ts.active)}</b>${ts.active < ts.params ? `<em>${Math.round(ts.active/ts.params*100)}%</em>` : ""}</div>
+    <div><span>Weights in bf16</span><b>${gb(ts.bytes_bf16)}</b></div>
+    <div><span>80 GB GPUs to serve</span><b>≈ ${gpus}</b></div></div>
+    <div class="sn">${ts.note}</div>`;
+}
+function renderArch(){
+  renderScale(); updateTitleBlock();
+  const an = G0.analysis, el = $("arch");
+  if (!an){ el.textContent = ""; return; }
+  const bn = an.bottleneck ? G0.nodes.find(n => n.name === an.bottleneck) : null;
+  el.innerHTML = {
+    hourglass: `<b>◆ Hourglass</b> (encoder → bottleneck → decoder)` + (bn ? ` · Deepest level <b>${bn.tshape.join("×")}</b> = ${bn.numel.toLocaleString()} values` : "") +
+               (an.spatial_ratio > 1.5 ? ` · ${Math.round(an.spatial_ratio)}× smaller spatially` : "") + (an.stochastic ? " · stochastic latent" : "") + (an.bypass.count ? ` · ${an.bypass.count} skip links bypass it` : ""),
+    funnel: "▽ Funnel: information is progressively compressed (classifier-like)",
+    expansion: "△ Expansion: a small code is progressively expanded (generator-like)",
+    flat: "▭ Roughly constant width (Transformer-like: the stream keeps its size)",
+  }[an.kind] || "";
+}
+async function loadGraph(){
+  loadStep("Fetching the traced graph");
+  G0 = await withLoading("Loading model", "Fetching the traced graph", async () => (await fetch("/api/graph")).json());
+  G0.nodes.forEach(n => n.path = n.path || "");
+  sel = null; A = null; expanded.clear();
+  $("grpblocks").checked = G0.nodes.length > 60;
+  const cs = $("cls"); cs.innerHTML = "";
+  G0.classes.slice(0, 12).forEach((c,i) => cs.add(new Option(c, i)));
+  renderControls(); renderArch();
+  {                                              // reference geometry: layout of the fully expanded model
+    const keep = $("grpblocks").checked;
+    $("grpblocks").checked = false;
+    G = makeView(); nodeBy = {}; inc = {};
+    layout();
+    G0.refLen = G.totalLen; G0.refZext = Math.max(...G.cols.map(c => c.zext));
+    $("grpblocks").checked = keep;
+  }
+  rebuildAll(false);
+  setStatus(`${G.name} · ${fmtParams(G.params)} params · ${G0.nodes.length} nodes · traced via ${G.tracer} · ` +
+            `Loaded in ${G.load_s}s · * = Display is sampled (≤24 channels/features, ≤12×12 cells, ≤4 heads)`);
+  $("model").value = G.model;
+  renderLegend(); syncSeg();
+  renderCard(); renderTitle();
+  setCard($("cardtoggle").checked);
+  await loadActs();
+}
+
+const DISPLAY_NAMES = {
+  "toy-mixed": "Toy mixed net", resnet18: "ResNet‑18", resnet50: "ResNet‑50", vgg16: "VGG‑16", alexnet: "AlexNet",
+  mobilenet_v3_small: "MobileNetV3‑Small", efficientnet_b0: "EfficientNet‑B0", densenet121: "DenseNet‑121",
+  vit_tiny_16: "ViT‑Tiny/16", vit_b_16: "ViT‑B/16", "gpt2-small": "GPT‑2 small", "gpt2-tiny": "GPT‑2 tiny",
+  "llama-style": "Llama‑style", "gpt-oss-style": "GPT‑OSS‑style", unet: "U‑Net", vae: "VAE",
+  "dcgan-generator": "DCGAN · Generator", "dcgan-discriminator": "DCGAN · Discriminator", "ddpm-unet": "DDPM U‑Net",
+  "mistral-7b": "Mistral 7B", "mixtral-8x7b": "Mixtral 8×7B", "mistral-large-2": "Mistral Large 2",
+  "gpt-oss-20b": "gpt‑oss‑20b", "gpt-oss-120b": "gpt‑oss‑120b", "llama-3.1-405b": "Llama 3.1 · 405B",
+};
+function renderTitle(){
+  const m = MODELS[G.model], info = m && m.info;
+  let name = DISPLAY_NAMES[G.model] || String(G.name || G.model).replace(/\.(py|pt|pth)$/, "");
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  // lighter weight for the part after "·" or "/" (variant / size)
+  const parts = esc(name).split(/( · |\/)/);
+  const html = parts.length > 1 ? `${parts[0]}<i>${parts.slice(1).join("")}</i>` : esc(name);
+  const sub = [m && m.group, info && info.year ? info.year.split("(")[0].trim() : null, `${fmtParams(G.params)} parameters`]
+    .filter(Boolean).join("  ·  ");
+  $("title").innerHTML = `<div class="nm">${html}</div><div class="sb">${esc(sub)}</div><div class="ln"></div>`;
+}
+
+function renderCard(){
+  const c = $("card"), m = MODELS[G.model], i = m && m.info;
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const list = (title, arr) => arr && arr.length ? `<h4>${title}</h4><ul>${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  if (!i){
+    c.innerHTML = `<span class="x" onclick="setCard(false)">✕</span><h3>${esc(G.name)}</h3>
+      <div class="sub">imported model</div><div class="tag">${fmtParams(G.params)} parameters · ${G.nodes.length} nodes · traced via ${esc(G.tracer)}</div>`;
+    return;
+  }
+  c.innerHTML = `<span class="x" onclick="setCard(false)">✕</span>
+    <h3>${esc(G.model)} <span style="color:#888;font-weight:400">· ${fmtParams(G.params)} params</span></h3>
+    <div class="sub">${esc(i.year)} · ${esc(i.org)}${i.paper && i.paper !== "—" ? `<br><i>${esc(i.paper)}</i>` : ""}</div>
+    <div class="tag">${esc(i.tagline)}</div>` +
+    list("Known for", i.known_for) + list("What it introduced", i.innovations) + list("Technical details", i.technical) +
+    list("What to look for in this view", i.look_for);
+}
+
+async function post(url, body){
+  const r = await fetch(url, {method: "POST", body});
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+const LOAD_DETAIL = window.NNVIZ_STATIC ? "Reading the pre-computed graph and activations" : "Reading the cached graph (built and traced only the first time)";
+// ---- loading indicator: nested calls share one chip; the outermost sets the title, inner steps update the detail line ----
+let loadDepth = 0, loadTimer = null;
+function loadOn(title, detail){
+  if (loadDepth++ === 0){
+    $("loadtitle").textContent = title; $("loadmsg").textContent = detail || "";
+    clearTimeout(loadTimer);   // skip the flash for operations under 120 ms
+    loadTimer = setTimeout(() => { $("loading").hidden = false; document.body.classList.add("isloading"); }, 120);
+  } else if (detail) $("loadmsg").textContent = detail;
+}
+function loadStep(detail){ if (loadDepth) $("loadmsg").textContent = detail; }
+function loadOff(){
+  if (--loadDepth > 0) return;
+  loadDepth = 0; clearTimeout(loadTimer); $("loading").hidden = true; document.body.classList.remove("isloading");
+}
+async function withLoading(title, detail, fn){ loadOn(title, detail); try { return await fn(); } finally { loadOff(); } }
+
+async function busy(msg, fn, detail){
+  document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = true);
+  setStatus(msg); loadOn(msg.replace(/…$/, ""), detail || "Please wait…");
+  try { await fn(); } catch (e) { setStatus(String(e.message || e), true); }
+  finally { loadOff(); document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = false); updateBlockButtons();
+    if ($("upbtn").dataset.locked) $("upbtn").disabled = true; }
+}
+
+// ---- control panel: tabs + collapse (remembered per browser) ----
+const store = { get(k){ try { return localStorage.getItem("nnviz." + k); } catch (e) { return null; } },
+                set(k, v){ try { localStorage.setItem("nnviz." + k, v); } catch (e) {} } };
+function setTab(t){
+  const tabs = [...document.querySelectorAll("#ctl .tabs button")];
+  if (!tabs.some(b => b.dataset.tab === t)) t = "model";
+  tabs.forEach(b => { const on = b.dataset.tab === t; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; });
+  document.querySelectorAll("#ctl .pane").forEach(p => p.classList.toggle("on", p.dataset.pane === t));
+  if ($("ctl").classList.contains("closed")) setClosed(false);
+  store.set("tab", t);
+}
+function setClosed(c){
+  $("ctl").classList.toggle("closed", c);
+  $("collapse").textContent = c ? "▸" : "▾"; $("collapse").setAttribute("aria-expanded", !c);
+  store.set("closed", c ? "1" : "0");
+}
+document.querySelectorAll("#ctl .tabs button").forEach((b, i, all) => {
+  b.onclick = () => setTab(b.dataset.tab);
+  b.onkeydown = e => {   // arrow keys move between tabs (WAI-ARIA tabs pattern)
+    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (!d) return;
+    const n = all[(i + d + all.length) % all.length]; setTab(n.dataset.tab); n.focus(); e.preventDefault();
+  };
+});
+setTab(store.get("tab") || "model");
+if (store.get("closed") === "1") setClosed(true);
+
+// ---- theme: dark (default) / blueprint ----
+function setTheme(t){
+  t = t === "blueprint" ? "blueprint" : "dark";
+  document.documentElement.dataset.theme = t;
+  scene.background = t === "blueprint" ? null : new T.Color(0x000000);
+  renderer.setClearColor(0x000000, t === "blueprint" ? 0 : 1);
+  document.querySelectorAll("#themeseg button").forEach(b => { const on = b.dataset.t === t; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  store.set("theme", t); needsRender = true;
+  if (typeof renderProfile === "function" && G) renderProfile();
+}
+(function sheetZones(){   // A–F down the sides, 1–8 along top and bottom, like a drawing sheet
+  const sh = $("sheet"), mk = (txt, css) => { const z = document.createElement("span"); z.className = "z"; z.textContent = txt; z.style.cssText = css; sh.appendChild(z); };
+  for (let i = 0; i < 8; i++){ const x = `left:${(i + .5)/8*100}%`; mk(i + 1, `${x};top:1px`); mk(i + 1, `${x};bottom:1px`); }
+  "ABCDEF".split("").forEach((c, i) => { const y = `top:calc(${(i + .5)/6*100}% - 6px)`; mk(c, `${y};left:3px`); mk(c, `${y};right:3px`); });
+})();
+function updateTitleBlock(){
+  if (!G0) return;
+  const m = MODELS[G0.model] || {}, an = G0.analysis;
+  $("tb-name").textContent = (G0.name || G0.model || "").replace(/ \(pretrained\)$/, "");
+  $("tb-params").textContent = fmtParams(G0.params).replace(" ", "");
+  $("tb-layers").textContent = G0.nodes.length;
+  $("tb-scale").textContent = G0.true_scale ? "True · log" : "1 : 1 · log";
+  $("tb-arch").textContent = an ? ({hourglass: "Hourglass", funnel: "Funnel", expansion: "Expansion", flat: "Constant width"}[an.kind] || m.group || "—") : (m.group || "—");
+  $("tb-date").textContent = new Date().toISOString().slice(0, 10);
+}
+document.querySelectorAll("#themeseg button").forEach(b => b.onclick = () => setTheme(b.dataset.t));
+setTheme(new URLSearchParams(location.search).get("theme") || store.get("theme") || "dark");
+
+// ---- tutorial ("?" button / ? key) ----
+const HELP = [
+  ["Welcome to nnviz", `nnviz traces a PyTorch model and draws it in 3D: every <b>tensor is a volume</b>, every <b>layer is the operation</b>
+    acting on it (sliding conv kernels, activation gates, attention maps, MoE routers…), with <b>live activations</b> for the input you choose.
+    <ul><li>The panel top-left has three tabs: <b>Model</b>, <b>View</b>, <b>Display</b>.</li>
+    <li>The layer inspector opens on the right when you click a layer.</li>
+    <li>The legend (bottom-left) explains the colours.</li></ul>
+    Reopen this guide any time with the <kbd>?</kbd> button or key.`],
+  ["Move around", `<table>
+    <tr><td>Left-drag</td><td>Orbit around the model</td></tr>
+    <tr><td>Right-drag</td><td>Pan</td></tr>
+    <tr><td>Mouse wheel</td><td>Zoom</td></tr>
+    <tr><td><kbd>F</kbd> / <b>Fit view</b></td><td>Frame the whole model</td></tr>
+    <tr><td><b>Look along flow</b></td><td>Put the camera behind the input, looking down the data path</td></tr></table>`],
+  ["Pick a model and an input", `In the <b>Model</b> tab:
+    <ul><li><b>Model list</b>: grouped zoo (CNNs, Transformers, generative…). The number after each name is its parameter count.</li>
+    <li><b>Pretrained weights</b>: download real torchvision weights on load (needs internet); otherwise weights are random.</li>
+    <li><b>Info</b> (<kbd>I</kbd>): the model card: what it is known for, what it introduced, what to look for.</li>
+    <li><b>Input</b>: choose a class / sample or draw <b>New noise</b>. The green pill shows the prediction. Some models add sliders here
+    (DDPM timestep, GAN latent interpolation).</li></ul>`],
+  ["Inspect a layer", `<b>Click any layer</b> to open the inspector on the right: plain-language description, input/output shapes,
+    parameters, FLOPs, kernels or weight matrices, attention maps, router gates.
+    <ul><li>Its <b>skip connections</b> light up green and the layer at the other end is outlined.</li>
+    <li>The <b>Tensor size</b> chart at the bottom plots the size of every layer's output along the main path (log scale). Hover a point for details; click it to jump there.</li></ul>`],
+  ["Arrange and colour", `In the <b>View</b> tab:
+    <ul><li><b>Layout</b>: <i>Line</i>, <i>Folded grid</i> (compact for deep nets) or <i>Spiral</i>.</li>
+    <li><b>Colour layers by</b>: type, parameters, FLOPs, activation size, sparsity, mean |activation| or residual change.
+    The legend shows the scale.</li>
+    <li><b>Blocks</b>: fold repeated blocks (ResNet stages, Transformer layers) into single nodes. <b>Double-click</b> a block to open it.</li></ul>`],
+  ["Tune the display", `In the <b>Display</b> tab, toggle what is drawn:
+    <ul><li><b>Data</b>: Activations, Weights, Kernel animation, Labels.</li>
+    <li><b>Structure</b>: <i>Size envelope</i> (tube following tensor size) and <i>Show depth</i> (line view: layers drop with each
+    downsampling, so a U-Net draws a U).</li>
+    <li><b>Performance</b>: keep <i>Easy rendering</i> on for laptops or large models; turn it off for full quality.</li></ul>`],
+  ["Bring your own model", `<b>Model › Import…</b> accepts:
+    <ul><li>A <code>.py</code> file defining <code>build()</code> that returns an <code>nn.Module</code>, optionally
+    <code>example_input()</code> and <code>CLASSES</code>. See <code>examples/my_model.py</code>.</li>
+    <li>A whole pickled module <code>.pt</code>/<code>.pth</code>. Give its input under <b>Import options</b>, for example
+    <code>1,3,224,224</code> or <code>int:1,32:50257</code> for token ids.</li></ul>
+    Plain state_dicts don't work: wrap them in a <code>.py</code> with <code>build()</code>.`],
+  ["Keyboard shortcuts", `<table>
+    <tr><td><kbd>?</kbd></td><td>Open this guide</td></tr>
+    <tr><td><kbd>L</kbd></td><td>Open <b>Explain NNs</b>, the short course on neural networks</td></tr>
+    <tr><td><kbd>F</kbd></td><td>Fit view</td></tr>
+    <tr><td><kbd>I</kbd></td><td>Toggle the model card</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Previous / next step here; switch tabs when a tab is focused</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close this guide</td></tr></table>
+    <p style="color:var(--mut);margin-top:10px">Tip: the panel remembers its tab and collapsed state.</p>`],
+];
+let hIdx = 0, hReturn = null;
+HELP.forEach((_, i) => { const d = document.createElement("button"); d.setAttribute("aria-label", `step ${i + 1}`); d.onclick = () => helpGo(i); $("hdots").appendChild(d); });
+function helpGo(i){
+  hIdx = Math.max(0, Math.min(HELP.length - 1, i));
+  $("hstep").textContent = `Step ${hIdx + 1} of ${HELP.length}`;
+  $("htitle").textContent = HELP[hIdx][0]; $("hbody").innerHTML = HELP[hIdx][1]; $("hbody").scrollTop = 0;
+  [...$("hdots").children].forEach((d, j) => d.classList.toggle("on", j === hIdx));
+  $("hprev").disabled = hIdx === 0;
+  $("hnext").textContent = hIdx === HELP.length - 1 ? "Done" : "Next";
+}
+function helpOpen(i = 0){ hReturn = document.activeElement; $("help").hidden = false; helpGo(i); $("hnext").focus();
+  $("helpbtn").classList.remove("pulse"); store.set("seenHelp", "1"); }
+function helpClose(){ $("help").hidden = true; if (hReturn && hReturn.focus) hReturn.focus(); }
+$("helpbtn").onclick = () => helpOpen(0);
+$("hclose").onclick = helpClose;
+$("hprev").onclick = () => helpGo(hIdx - 1);
+$("hnext").onclick = () => hIdx === HELP.length - 1 ? helpClose() : helpGo(hIdx + 1);
+$("help").addEventListener("mousedown", e => { if (e.target === $("help")) helpClose(); });
+addEventListener("keydown", e => {
+  const open = !$("help").hidden;
+  if (!open && !$("learn").hidden) return;   // the course dialog handles its own keys (learn.js)
+  if (open){
+    if (e.key === "Escape") helpClose();
+    else if (e.key === "ArrowRight") helpGo(hIdx + 1);
+    else if (e.key === "ArrowLeft") helpGo(hIdx - 1);
+    else if (e.key === "Tab"){   // keep focus inside the dialog
+      const f = [...$("help").querySelectorAll("button:not(:disabled)")], a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a){ z.focus(); e.preventDefault(); }
+      else if (!e.shiftKey && document.activeElement === z){ a.focus(); e.preventDefault(); }
+    }
+    e.stopImmediatePropagation(); return;
+  }
+  if (e.key === "?" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){ helpOpen(0); e.preventDefault(); }
+}, true);
+if (!store.get("seenHelp")) $("helpbtn").classList.add("pulse");
+
+function viewAlong(){
+  const n0 = G.nodes.find(n => n.kind === "input") || G.nodes[0], p = n0.pose;
+  const fwd = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw)), P = new T.Vector3(p.px, p.py, p.pz);
+  camera.position.copy(P).addScaledVector(fwd, -22).add(new T.Vector3(0, 7, 0));
+  controls.target.copy(P).addScaledVector(fwd, 40); controls.update();
+}
+
+// ---- ?perf=1: time every stage of a model load and print a summary to the console (for profiling) ----
+if (new URLSearchParams(location.search).get("perf")){
+  const T0 = {}, acc = {};
+  const wrap = name => { const f = window[name]; if (typeof f !== "function") return;
+    window[name] = function(...a){ const t = performance.now(), r = f.apply(this, a);
+      const done = () => { const d = performance.now() - t; (acc[name] = acc[name] || {n: 0, ms: 0}).n++; acc[name].ms += d; };
+      if (r && typeof r.then === "function") return r.then(v => (done(), v)); done(); return r; }; };
+  ["loadGraph", "loadActs", "makeView", "layout", "rebuildAll", "rebuild", "buildNode", "renderLegend", "renderProfile",
+   "computeMetricRange", "refreshSweeps", "renderGallery", "showPanel"].forEach(wrap);
+  const rr = renderer.render.bind(renderer); let frames = 0, fms = 0;
+  renderer.render = (s_, c_) => { const t = performance.now(); rr(s_, c_); frames++; fms += performance.now() - t; };
+  const rf = window.fetch.bind(window); window.fetch = async (...a) => { const t = performance.now(), r = await rf(...a);
+    const u = String(a[0]).split("?")[0]; const j = r.json.bind(r);
+    r.json = async () => { const t2 = performance.now(), v = await j(); (acc["parse " + u] = acc["parse " + u] || {n: 0, ms: 0}).n++; acc["parse " + u].ms += performance.now() - t2; return v; };
+    (acc["fetch " + u] = acc["fetch " + u] || {n: 0, ms: 0}).n++; acc["fetch " + u].ms += performance.now() - t; return r; };
+  window.perfReport = () => {
+    const rows = Object.entries(acc).sort((a, b) => b[1].ms - a[1].ms).map(([k, v]) => `${k}=${v.ms.toFixed(0)}ms/${v.n}`);
+    const geo = renderer.info;
+    console.info(`[perf] ${G && G.model} nodes=${G0 && G0.nodes.length} drawCalls=${geo.render.calls} tris=${geo.render.triangles} ` +
+      `geoms=${geo.memory.geometries} labels=${labels.length} frames=${frames} avgFrame=${(fms/Math.max(1, frames)).toFixed(1)}ms | ${rows.join(" ")}`);
+    rf("/api/perf", {method: "POST", body: `${G && G.model} nodes=${G0 && G0.nodes.length} edges=${G0 && G0.edges.length} drawCalls=${geo.render.calls} ` +
+      `tris=${geo.render.triangles} geoms=${geo.memory.geometries} labels=${labels.length} frames=${frames} avgFrame=${(fms/Math.max(1, frames)).toFixed(1)}ms | ${rows.join(" ")}`}).catch(() => {});
+  };
+  setTimeout(() => window.perfReport(), +new URLSearchParams(location.search).get("perf") > 1 ? +new URLSearchParams(location.search).get("perf") : 6000);
+}
+
+(async function init(){
+  const ms = await (await fetch("/api/models")).json();
+  const sel_ = $("model"), groups = {};
+  ms.models.forEach(m => {
+    if (!groups[m.group]){ groups[m.group] = document.createElement("optgroup"); groups[m.group].label = m.group; sel_.appendChild(groups[m.group]); }
+    const o = new Option(`${m.id}  ·  ${fmtParams(m.params)}`, m.id); o.title = m.desc; groups[m.group].appendChild(o);
+    MODELS[m.id] = m;
+  });
+  if (ms.upload === false){
+    $("upbtn").disabled = true; $("upbtn").title = "Model import is disabled on this server";
+    $("upbtn").dataset.locked = "1";
+  }
+  const qp = new URLSearchParams(location.search);
+  try { if (localStorage.getItem("nnviz.card") === "0") $("cardtoggle").checked = false; } catch (e) {}
+  if (qp.get("layout")) $("layout").value = qp.get("layout");
+  if (qp.get("weights") === "0") $("showw").checked = false;
+  if (qp.get("depth") === "0") $("showdepth").checked = false;
+  if (qp.get("labels") === "0") { $("showl").checked = false; $("labels").style.display = "none"; }
+  if (qp.get("model") && qp.get("model") !== ms.current && ms.models.some(m => m.id === qp.get("model")))
+    await busy(`Loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`), LOAD_DETAIL);
+  await withLoading("Loading model", "Fetching the traced graph", loadGraph);
+  if (qp.get("focus") && nodeBy[qp.get("focus")]){   // look at one layer from above
+    const f = nodeBy[qp.get("focus")], c = Wp(f, new T.Vector3(f.b.ox + f.b.sx/2, 0, f.b.oz + f.b.sz/2));
+    controls.target.copy(c); camera.position.copy(c).add(new T.Vector3(-4, 17, 15)); controls.update();
+  }
+  if (qp.get("collapse") === "0"){ $("grpblocks").checked = false; expanded.clear(); rebuildAll(false); }
+  if (qp.get("fold") === "collapse") setTimeout(() => $("collapseall").click(), 800);   // test hook: run the fold animation
+  if (qp.get("fold") === "expand") setTimeout(() => $("expandall").click(), 800);
+  if (qp.get("along")) viewAlong();
+  if (qp.get("select") && nodeBy[qp.get("select")]){ sel = nodeBy[qp.get("select")]; showPanel(); refreshSweeps(); }
+  if (qp.get("card") === "0") setCard(false);
+  if (qp.get("learn") && window.learnOpen) window.learnOpen(Math.max(0, (parseInt(qp.get("learn")) || 1) - 1));   // ?learn=1 opens the course (?learn=4: chapter 4)
+  if (qp.get("help")) helpOpen(Math.max(0, (parseInt(qp.get("help")) || 1) - 1));   // ?help=1 opens the tutorial (?help=3: step 3)
+  if (qp.get("tab")) setTab(qp.get("tab"));
+  if (qp.get("cam")){   // x,y,z,tx,ty,tz in world units
+    const v = qp.get("cam").split(",").map(Number);
+    camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update();
+  }
+  sel_.onchange = () => busy(`Loading ${sel_.value}…`, async () => {
+    await post(`/api/load?model=${encodeURIComponent(sel_.value)}&pretrained=${$("pre").checked ? 1 : 0}`);
+    await loadGraph();
+  }, $("pre").checked ? "Downloading pretrained weights (first time only), then tracing the graph" : LOAD_DETAIL);
+  $("pre").onchange = () => { if ($("pre").checked) setStatus("Pretrained weights are downloaded on load (torchvision CNN/ViT only); re-select the model to apply"); };
+  $("upbtn").onclick = () => $("file").click();
+  $("file").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    busy(`Importing ${f.name}…`, async () => {
+      const j = await post(`/api/upload?name=${encodeURIComponent(f.name)}&input=${encodeURIComponent($("inshape").value.trim())}`, f);
+      if (![...sel_.options].some(o => o.value === j.model)){ const o = new Option(j.model, j.model); sel_.add(o); }
+      await loadGraph();
+    }, "Uploading the file, building the model and tracing its graph");
+    e.target.value = "";
+  };
+  $("layout").onchange = e => { arrange(e.target.value); rebuild(); fit(); syncSeg(); updateDepthChip(); };
+  $("metric").onchange = () => { rebuild(); renderLegend(); };
+  $("showenv").onchange = () => rebuild();
+  $("showfloor").onchange = () => rebuild();
+  $("showdepth").onchange = () => { rebuildAll(true); fit(); };
+  $("grpblocks").onchange = () => transition(() => expanded.clear(), true);
+  $("collapseall").onclick = () => transition(() => { $("grpblocks").checked = true; expanded.clear(); }, true);
+  $("expandall").onclick = () => transition(() => { $("grpblocks").checked = false; expanded.clear(); }, true);
+  document.querySelectorAll("#layoutseg button").forEach(b => b.onclick = () => {
+    $("layout").value = b.dataset.v; $("layout").dispatchEvent(new Event("change")); });
+  $("collapse").onclick = () => setClosed(!$("ctl").classList.contains("closed"));
+  addEventListener("resize", fitLeft);
+  $("showl").onchange = e => { $("labels").style.display = e.target.checked ? "" : "none"; };
+  $("cls").onchange = loadActs;
+  $("resample").onclick = () => { seed++; loadActs(); };
+  $("showact").onchange = rebuild;
+  $("easy").onchange = () => { renderer.setPixelRatio($("easy").checked ? 1 : Math.min(devicePixelRatio || 1, 2));
+                               renderer.setSize(innerWidth, innerHeight); rebuild(); };
+  $("showk").onchange = () => { needsRender = true; };
+  $("showw").onchange = rebuild;
+  $("fit").onclick = fit;
+  $("cardtoggle").onchange = () => setCard($("cardtoggle").checked);
+  addEventListener("keydown", e => { if ((e.key === "i" || e.key === "I") && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) setCard(!$("cardtoggle").checked); });
+  $("along").onclick = viewAlong;
+  requestAnimationFrame(animate);
+})();
+</script>
+<script src="learn.js"></script>
+</body>
+</html>

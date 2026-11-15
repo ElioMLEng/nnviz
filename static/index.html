@@ -1627,8 +1627,9 @@ async function loadActs(){
   if (A.error){ setStatus(A.error, true); A = null; return; }
   let txt = "";
   if (A.pred != null){
-    const nm = A.top && A.top[0] ? A.top[0].label : G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
-    txt = `→ ${nm} (${(A.prob*100).toFixed(0)}%)`;
+    const nm = A.top && A.top[0] ? A.top[0].label.trim() : G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
+    const pr = A.top && A.top[0] ? A.top[0].p : A.prob;
+    txt = `→ ${nm} (${(pr*100).toFixed(0)}%)`;
   }
   $("pred").textContent = txt;
   renderGallery(A.images || []);
