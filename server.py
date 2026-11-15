@@ -35,7 +35,7 @@ STATE = {"net": None, "id": None, "name": None, "make_input": None, "classes": [
 import hashlib
 CACHE = Path(os.environ.get("NNVIZ_CACHE_DIR", HERE / ".cache"))
 _code = hashlib.sha1(b"".join((HERE / f).read_bytes() for f in
-                              ("extract.py", "zoo.py", "zoo_extra.py", "zoo_llm.py", "toynet.py", "server.py") if (HERE / f).exists()))
+                              ("extract.py", "zoo.py", "zoo_extra.py", "zoo_llm.py", "toynet.py", "server.py", "fake_outputs.py") if (HERE / f).exists()))
 CACHE_VER = _code.hexdigest()[:10]
 
 
@@ -53,6 +53,18 @@ def cache_put(key, name, body):
     if f is None: return
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp"); tmp.write_bytes(body); tmp.replace(f)
+
+
+def _shrink(o):
+    """4 significant digits: about half the JSON size, no visible difference in the views."""
+    if isinstance(o, float): return float(f"{o:.4g}")
+    if isinstance(o, list): return [_shrink(v) for v in o]
+    if isinstance(o, dict): return {k: _shrink(v) for k, v in o.items()}
+    return o
+
+
+def dumps(obj):
+    return json.dumps(_shrink(obj), separators=(",", ":")).encode()
 
 
 def ensure_net():
@@ -173,6 +185,23 @@ def load_upload(path, input_spec):
     install(model, make_input, classes, "upload:" + path.name, path.name)
 
 
+def illustrative(model_id, cls, seed, params, x):
+    """Plausible output for an untrained zoo model, matching the chosen input (see fake_outputs.py). None = keep real."""
+    import fake_outputs as fo
+    import zoo
+    e = REGISTRY.get(model_id)
+    if e is None: return None
+    if e.get("classes") == fo.PROMPT_NAMES:
+        return {"top": fo.token_top(cls, seed), "kind": "token"}
+    if e.get("labels"):
+        return {"top": fo.classifier_top(cls, seed, STATE.get("labels")), "kind": "class"}
+    if model_id == "vae": return {"images": fo.vae_images(x, seed)}
+    if model_id == "unet": return {"images": fo.unet_images(x, seed)}
+    if model_id == "ddpm-unet": return {"images": fo.ddpm_images(x, getattr(x, "meta", None))}
+    if model_id == "dcgan-generator": return {"images": fo.dcgan_images(cls, seed, params, zoo.photo)}
+    return None
+
+
 def top_k(out, labels, k=5):
     """Top-k output classes (or next tokens) with probabilities, for the output card."""
     from extract import first_tensor
@@ -198,8 +227,12 @@ def prediction(out):
 
 class H(BaseHTTPRequestHandler):
     def _raw(self, body, code=200):
+        import gzip
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        if len(body) > 4096 and "gzip" in self.headers.get("Accept-Encoding", ""):   # ~4× smaller over a network
+            body = gzip.compress(body, compresslevel=4)
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -233,9 +266,9 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/graph":
                 if STATE["graph"] is None:
                     net = ensure_net()
-                    STATE["graph"] = json.dumps({**net.graph, "classes": STATE["classes"], "model": STATE["id"],
-                                                 "name": STATE["name"], "load_s": round(STATE["load_s"], 1),
-                                                 "controls": STATE["controls"]}).encode()
+                    STATE["graph"] = dumps({**net.graph, "classes": STATE["classes"], "model": STATE["id"],
+                                            "name": STATE["name"], "load_s": round(STATE["load_s"], 1),
+                                            "controls": STATE["controls"]})
                     cache_put(STATE["key"], "graph", STATE["graph"])
                     return self._raw(STATE["graph"])
                 g = json.loads(STATE["graph"])     # cached: report this (fast) load time
@@ -262,9 +295,21 @@ class H(BaseHTTPRequestHandler):
                             im = to_image(tens)
                             if im: images.append({"name": name, **im})
                 pred, prob, n = prediction(out)
-                body = json.dumps({"acts": acts, "pred": pred, "prob": prob, "n_out": n, "images": images,
-                                   "top": top_k(out, STATE.get("labels") or (STATE["classes"] if STATE["id"] == "toy-mixed" else None)),
-                                   "trained": STATE.get("trained", False)}).encode()
+                top = top_k(out, STATE.get("labels") or (STATE["classes"] if STATE["id"] == "toy-mixed" else None))
+                top_kind = "token" if out is not None and getattr(out, "ndim", 0) == 3 else "class"
+                illus = None if STATE.get("trained") else illustrative(STATE["id"], cls, seed, params, x)
+                if illus:                            # random weights: show a plausible output that matches the input
+                    for name, tens in illus.get("images", {}).items():
+                        im = to_image(tens)
+                        if not im: continue
+                        images = [i for i in images if i["name"] != name]
+                        images.insert(1 if name == "Output" else len(images), {"name": name, **im})
+                    if illus.get("top"): top, top_kind = illus["top"], illus.get("kind", top_kind)
+                if top_kind == "token":              # a language model's logits are not an image
+                    images = [i for i in images if i["name"] != "Output"]
+                body = dumps({"acts": acts, "pred": pred, "prob": prob, "n_out": n, "images": images,
+                                   "top": top, "top_kind": top_kind, "illustrative": bool(illus),
+                                   "trained": STATE.get("trained", False)})
                 cache_put(STATE["key"], ckey, body)
                 return self._raw(body)
         except Exception as e:
@@ -282,6 +327,11 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/load":
                 if q["model"] not in REGISTRY: raise ValueError("unknown model")
                 load_registry(q["model"], q.get("pretrained") == "1")
+            elif u.path == "/api/perf":           # dev: ?perf=1 pages post their timing summary here
+                CACHE.mkdir(parents=True, exist_ok=True)
+                with open(CACHE / "perf.log", "a", encoding="utf-8") as f:
+                    f.write(self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8", "replace") + "\n")
+                return self._json({"ok": True})
             elif u.path == "/api/upload":
                 if not ALLOW_UPLOAD:
                     raise PermissionError("model import is disabled on this server (NNVIZ_ALLOW_UPLOAD=0)")

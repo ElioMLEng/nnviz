@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from zoo import RMSNorm
+from fake_outputs import PROMPT_NAMES
 
 T_TOKENS = 16
 
@@ -208,13 +209,13 @@ def active_params(c):
 
 
 def _token_input(cls, seed):
-    g = torch.Generator().manual_seed(seed)
+    g = torch.Generator().manual_seed(seed + 1000 * cls)
     return torch.randint(0, 512, (1, T_TOKENS), generator=g)
 
 
 def _entry(mid, c):
     return {"group": "Frontier LLMs (true scale)", "build": lambda pretrained=False, c=c: LLM(twin_config(c)).eval(),
-            "make_input": _token_input, "classes": ["random tokens"], "desc": c["desc"], "pretrained": False,
+            "make_input": _token_input, "classes": list(PROMPT_NAMES), "desc": c["desc"], "pretrained": False,
             "count": lambda c=c: sum(p.numel() for p in build_true(c).parameters()),
             "post": lambda net, mid=mid: true_scale(net, mid)}
 

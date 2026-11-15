@@ -156,10 +156,13 @@ def image_input(size=224):
 
 
 def token_input(vocab, T=32):
+    """Token ids for one of the example prompts (fake_outputs.PROMPTS); the ids are stand-ins (no tokenizer)."""
+    from fake_outputs import PROMPT_NAMES
+
     def make(cls, seed):
-        g = torch.Generator().manual_seed(seed)
+        g = torch.Generator().manual_seed(seed + 1000 * cls)
         return torch.randint(0, vocab, (1, T), generator=g)
-    return make, ["random tokens"]
+    return make, list(PROMPT_NAMES)
 
 
 def toy_input(cls, seed):
@@ -198,8 +201,8 @@ REGISTRY = {
     "mobilenet_v3_small": _entry("CNN", _tv("mobilenet_v3_small"), image_input(), "MobileNetV3-Small · 2.5M · depthwise + SE", True, labels=imagenet_labels),
     "efficientnet_b0": _entry("CNN", _tv("efficientnet_b0"), image_input(), "EfficientNet-B0 · 5.3M · MBConv", True, labels=imagenet_labels),
     "densenet121": _entry("CNN", _tv("densenet121"), image_input(), "DenseNet-121 · 8M · dense concatenation", True, labels=imagenet_labels),
-    "vit_tiny_16": _entry("Vision Transformer", _vit(num_layers=12, num_heads=3, hidden_dim=192, mlp_dim=768, labels=imagenet_labels),
-                          image_input(), "ViT-Tiny/16 · 5.7M · 197 tokens"),
+    "vit_tiny_16": _entry("Vision Transformer", _vit(num_layers=12, num_heads=3, hidden_dim=192, mlp_dim=768),
+                          image_input(), "ViT-Tiny/16 · 5.7M · 197 tokens", labels=imagenet_labels),
     "vit_b_16": _entry("Vision Transformer", _tv("vit_b_16"), image_input(), "ViT-Base/16 · 86M · 12 layers, 12 heads", True, labels=imagenet_labels),
     "gpt2-small": _entry("LLM", lambda pretrained=False: GPT().eval(), token_input(50257),
                          "GPT-2 small architecture · 124M · 12 layers, 12 heads, T=32 (random weights)"),

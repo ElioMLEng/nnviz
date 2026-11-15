@@ -110,6 +110,8 @@
   .outcard .op{text-align:right;font-variant-numeric:tabular-nums}
   .outcard .orow.top{color:#fff;font-weight:600} .outcard .orow.top .ob i{background:var(--acc)} .outcard .orow.top .op{color:var(--acc)}
   .outcard .onote{margin-top:3px;font-size:10.5px;color:#ffb74d}
+  .outcard .onote.il{color:var(--mut);font-style:italic}
+  #gallery figcaption .il{display:block;font-style:italic;opacity:.75}
   #profcard{pointer-events:auto;position:relative;width:100%;max-width:680px;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);padding:8px 10px 6px}
   #profcard[hidden]{display:none}
   #profcard .ph{display:flex;align-items:baseline;gap:8px;margin:0 2px 2px;min-width:0}
@@ -1655,12 +1657,14 @@ function renderGallery(imgs){
   // output card: what the model predicts for this input (top-5 classes, or next tokens for language models)
   if (A && A.top && A.top.length > 1){
     const f = document.createElement("figure"); f.className = "outcard";
-    const seq = /^token #/.test(A.top[0].label);
+    const seq = A.top_kind === "token" || /^token #/.test(A.top[0].label);
     f.innerHTML = `<div class="oh"><b>${seq ? "Next token" : "Prediction"}</b><span>top ${A.top.length}</span></div>` +
       A.top.map((t, i) => `<div class="orow${i === 0 ? " top" : ""}" title="${t.label} · ${(t.p*100).toFixed(2)}%">` +
         `<span class="ol">${t.label}</span><span class="ob"><i style="width:${Math.max(1.5, t.p*100).toFixed(1)}%"></i></span>` +
         `<span class="op">${t.p >= .995 ? ">99" : t.p < .005 ? "<1" : (t.p*100).toFixed(0)}%</span></div>`).join("") +
-      (A.trained ? "" : `<div class="onote" title="This model has random weights, so its output is noise. Real behaviour needs trained weights.">⚠ Random weights: output is meaningless</div>`);
+      (A.trained ? "" : A.illustrative
+        ? `<div class="onote il" title="This model runs with random weights. The output shown is what a trained model typically answers for this input; the activations in the 3D view are the real values of the random network.">Illustrative output · random weights</div>`
+        : `<div class="onote" title="This model has random weights, so its output is noise. Real behaviour needs trained weights.">⚠ Random weights: output is meaningless</div>`);
     el.appendChild(f);
   }
 }
@@ -1735,6 +1739,8 @@ const DISPLAY_NAMES = {
   vit_tiny_16: "ViT‑Tiny/16", vit_b_16: "ViT‑B/16", "gpt2-small": "GPT‑2 small", "gpt2-tiny": "GPT‑2 tiny",
   "llama-style": "Llama‑style", "gpt-oss-style": "GPT‑OSS‑style", unet: "U‑Net", vae: "VAE",
   "dcgan-generator": "DCGAN · Generator", "dcgan-discriminator": "DCGAN · Discriminator", "ddpm-unet": "DDPM U‑Net",
+  "mistral-7b": "Mistral 7B", "mixtral-8x7b": "Mixtral 8×7B", "mistral-large-2": "Mistral Large 2",
+  "gpt-oss-20b": "gpt‑oss‑20b", "gpt-oss-120b": "gpt‑oss‑120b", "llama-3.1-405b": "Llama 3.1 · 405B",
 };
 function renderTitle(){
   const m = MODELS[G.model], info = m && m.info;
@@ -1940,6 +1946,32 @@ function viewAlong(){
   const fwd = new T.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw)), P = new T.Vector3(p.px, p.py, p.pz);
   camera.position.copy(P).addScaledVector(fwd, -22).add(new T.Vector3(0, 7, 0));
   controls.target.copy(P).addScaledVector(fwd, 40); controls.update();
+}
+
+// ---- ?perf=1: time every stage of a model load and print a summary to the console (for profiling) ----
+if (new URLSearchParams(location.search).get("perf")){
+  const T0 = {}, acc = {};
+  const wrap = name => { const f = window[name]; if (typeof f !== "function") return;
+    window[name] = function(...a){ const t = performance.now(), r = f.apply(this, a);
+      const done = () => { const d = performance.now() - t; (acc[name] = acc[name] || {n: 0, ms: 0}).n++; acc[name].ms += d; };
+      if (r && typeof r.then === "function") return r.then(v => (done(), v)); done(); return r; }; };
+  ["loadGraph", "loadActs", "makeView", "layout", "rebuildAll", "rebuild", "buildNode", "renderLegend", "renderProfile",
+   "computeMetricRange", "refreshSweeps", "renderGallery", "showPanel"].forEach(wrap);
+  const rr = renderer.render.bind(renderer); let frames = 0, fms = 0;
+  renderer.render = (s_, c_) => { const t = performance.now(); rr(s_, c_); frames++; fms += performance.now() - t; };
+  const rf = window.fetch.bind(window); window.fetch = async (...a) => { const t = performance.now(), r = await rf(...a);
+    const u = String(a[0]).split("?")[0]; const j = r.json.bind(r);
+    r.json = async () => { const t2 = performance.now(), v = await j(); (acc["parse " + u] = acc["parse " + u] || {n: 0, ms: 0}).n++; acc["parse " + u].ms += performance.now() - t2; return v; };
+    (acc["fetch " + u] = acc["fetch " + u] || {n: 0, ms: 0}).n++; acc["fetch " + u].ms += performance.now() - t; return r; };
+  window.perfReport = () => {
+    const rows = Object.entries(acc).sort((a, b) => b[1].ms - a[1].ms).map(([k, v]) => `${k}=${v.ms.toFixed(0)}ms/${v.n}`);
+    const geo = renderer.info;
+    console.info(`[perf] ${G && G.model} nodes=${G0 && G0.nodes.length} drawCalls=${geo.render.calls} tris=${geo.render.triangles} ` +
+      `geoms=${geo.memory.geometries} labels=${labels.length} frames=${frames} avgFrame=${(fms/Math.max(1, frames)).toFixed(1)}ms | ${rows.join(" ")}`);
+    rf("/api/perf", {method: "POST", body: `${G && G.model} nodes=${G0 && G0.nodes.length} edges=${G0 && G0.edges.length} drawCalls=${geo.render.calls} ` +
+      `tris=${geo.render.triangles} geoms=${geo.memory.geometries} labels=${labels.length} frames=${frames} avgFrame=${(fms/Math.max(1, frames)).toFixed(1)}ms | ${rows.join(" ")}`}).catch(() => {});
+  };
+  setTimeout(() => window.perfReport(), +new URLSearchParams(location.search).get("perf") > 1 ? +new URLSearchParams(location.search).get("perf") : 6000);
 }
 
 (async function init(){
