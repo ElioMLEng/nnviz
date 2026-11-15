@@ -110,35 +110,111 @@
   #ctl .pane{display:none} #ctl .pane.on{display:block;animation:fade .15s ease-out}
   @keyframes fade{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
   #ctl .sec:first-child{margin-top:4px}
+  #ctl .learnbtn{display:flex;align-items:center;gap:6px;height:26px;padding:0 11px !important;border-radius:999px !important;font-size:12px;font-weight:600;
+                 color:#d8f6ff;background:linear-gradient(135deg,#173445,#1d2a4a) !important;border-color:#2b6a86 !important}
+  #ctl .learnbtn:hover{background:linear-gradient(135deg,#1d4256,#25345c) !important}
+  #ctl .learnbtn svg{color:var(--acc)}
+  /* ---- learn (course) dialog ---- */
+  #learn .hc{width:min(940px,100%);height:min(680px,calc(100vh - 32px))}
+  #learn .lw{display:flex;flex:1;min-height:0}
+  #learn nav{width:210px;flex:none;border-right:1px solid #1c1c24;padding:10px 8px;overflow:auto}
+  #learn nav .part{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:6px 8px 6px}
+  #learn nav button{display:flex;gap:9px;align-items:baseline;width:100%;text-align:left;background:none;border:0;color:#b9b9c4;font:inherit;font-size:13px;padding:7px 8px;border-radius:7px;cursor:pointer}
+  #learn nav button:hover{background:#15151c;color:var(--fg)}
+  #learn nav button.on{background:#14222b;color:var(--acc)}
+  #learn nav button em{font-style:normal;font-size:11px;color:var(--mut);width:14px;flex:none}
+  #learn nav button.on em{color:var(--acc)}
+  #learn .lc{flex:1;min-width:0;display:flex;flex-direction:column}
+  #learn .hb{flex:1;padding:4px 22px 10px;font-size:13.5px}
+  #learn h2{margin:6px 22px 0}
+  #learn .lede{font-size:14.5px;color:#e2e2ea;margin:8px 0 12px}
+  #learn h4{margin:16px 0 4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+  #learn figure{margin:12px 0;padding:12px;background:#0a0a0e;border:1px solid #1c1c24;border-radius:10px;text-align:center}
+  #learn figure svg{max-width:100%;height:auto}
+  #learn figcaption{font-size:11.5px;color:var(--mut);margin-top:6px}
+  #learn .try{margin:14px 0 4px;padding:10px 12px;border-left:3px solid var(--acc);background:#0f1b22;border-radius:0 8px 8px 0}
+  #learn .try b{color:var(--acc)}
+  #learn .eq{font:13px ui-monospace,Consolas,monospace;color:#9fe;background:#0b1714;border:1px solid #173a31;border-radius:6px;padding:6px 10px;margin:8px 0;display:block;overflow-x:auto;white-space:nowrap}
+  #learn table.kv td{border-bottom:1px solid #1c1c24;padding:5px 6px;vertical-align:top}
+  #learn table.kv td:first-child{width:auto;white-space:nowrap;color:var(--fg)}
+  #learn .hf .prog{flex:1;height:3px;background:#1c1c24;border-radius:2px;overflow:hidden}
+  #learn .hf .prog i{display:block;height:100%;background:var(--acc);transition:width .2s}
+  #learn .glance{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
+  #learn .glance div{background:#101017;border:1px solid #1f1f29;border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.45}
+  #learn .glance div b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:3px;font-weight:600}
+  #learn .glance div:first-child{border-color:#21485a} #learn .glance div:first-child b{color:var(--acc)}
+  #learn ol.steps{list-style:none;counter-reset:s;padding:0;margin:8px 0}
+  #learn ol.steps li{counter-increment:s;position:relative;padding:2px 0 8px 32px}
+  #learn ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:21px;height:21px;border-radius:50%;background:#14222b;border:1px solid #2b6a86;color:var(--acc);font-size:11px;font-weight:700;display:grid;place-items:center}
+  #learn .uses{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:8px 0}
+  #learn .uses div{display:flex;gap:9px;align-items:flex-start;background:#0f0f15;border:1px solid #1c1c24;border-radius:8px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+  #learn .uses div i{font-style:normal;font-size:16px;line-height:1.1}
+  #learn .uses div b{color:var(--fg)}
+  #learn .pc{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  #learn .pc div{border-radius:8px;padding:8px 11px;font-size:12.5px;line-height:1.45}
+  #learn .pc .pro{background:#0f1d16;border:1px solid #1f4a3f} #learn .pc .con{background:#1d0f16;border:1px solid #4a1f33}
+  #learn .pc b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+  #learn .pc .pro b{color:#66bb6a} #learn .pc .con b{color:#ff6e9e}
+  #learn .pc ul{margin:0;padding-left:16px}
+  #learn .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
+  #learn .card{background:#101017;border:1px solid #1f1f29;border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.5;border-top:3px solid var(--k,#5cdcff)}
+  #learn .card h5{margin:0 0 4px;font-size:14px;color:#fff;display:flex;align-items:center;gap:7px}
+  #learn .card h5 span{width:9px;height:9px;border-radius:3px;background:var(--k)}
+  #learn .card p{margin:4px 0}
+  #learn .card .ana{color:var(--mut);font-style:italic}
+  #learn .card .where{margin-top:6px;font-size:11.5px;color:var(--mut)} #learn .card .where b{color:#c9c9d3;font-weight:600}
+  @media (max-width:720px){ #learn .glance,#learn .uses,#learn .pc,#learn .cards{grid-template-columns:1fr} }
+  @media (max-width:720px){ #learn .lw{flex-direction:column} #learn nav{width:auto;display:flex;gap:4px;overflow-x:auto;border-right:0;border-bottom:1px solid #1c1c24}
+    #learn nav .part{display:none} #learn nav button{white-space:nowrap;width:auto} }
+  /* ---- loading indicator, right of the control panel ---- */
+  #loading{position:fixed;left:396px;top:12px;z-index:40;display:flex;align-items:center;gap:11px;max-width:min(360px,calc(100vw - 420px));
+           padding:9px 14px 9px 11px;background:var(--bg);border:1px solid #2b6a86;border-radius:10px;backdrop-filter:blur(6px);
+           box-shadow:0 6px 24px rgba(0,0,0,.45);animation:fade .15s ease-out}
+  #loading[hidden]{display:none}
+  #loading b{display:block;font-size:12.5px;color:var(--fg);font-weight:600}
+  #loading #loadmsg{display:block;font-size:11.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #loading .spin{width:20px;height:20px;flex:none;border-radius:50%;border:2.5px solid #1f3644;border-top-color:var(--acc);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  body.isloading #card{top:74px;max-height:calc(100vh - 86px)}
+  @media (max-width:720px){ #loading{left:12px;top:auto;bottom:12px;max-width:calc(100vw - 24px)} }
+  #ctl .vlist{display:flex;flex-direction:column;gap:4px}
+  #ctl .vlist button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:7px 10px}
+  #ctl .vlist button span{color:var(--fg)}
+  #ctl .vlist button small{margin-left:auto;color:var(--mut);font-size:11px}
+  #ctl .vlist button kbd{margin-left:auto}
+  #ctl .vlist button i{width:12px;height:12px;border-radius:50%;border:1.5px solid #5a5a68;flex:none;box-sizing:border-box}
+  #ctl .vlist button.on{background:#14222b;border-color:#2b6a86}
+  #ctl .vlist button.on i{border:4px solid var(--acc)}
+  #ctl .vlist button.on span{color:var(--acc)}
   #ctl .grp{font-size:11px;color:var(--mut);margin:8px 0 4px}
   #ctl :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
   #ctl #status{border-top:1px solid var(--line);padding-top:7px}
   kbd{font:11px ui-monospace,Consolas,monospace;background:#1b1b23;border:1px solid #33333f;border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--fg)}
   /* ---- tutorial ---- */
-  #help{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);padding:16px}
-  #help[hidden]{display:none}
-  #help .hc{width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#0d0d12;border:1px solid #2a2a35;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:fade .18s ease-out}
-  #help .hh{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
-  #help .step{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
-  #help .hh .sp{flex:1}
-  #help .x{background:none;border:0;color:var(--mut);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}
-  #help .x:hover{color:var(--fg);background:#1b1b23}
-  #help h2{margin:6px 16px 0;font-size:19px;color:#fff}
-  #help .hb{padding:6px 16px 4px;overflow:auto;line-height:1.55;color:#c9c9d3}
-  #help .hb ul{padding-left:18px;margin:6px 0} #help .hb li{margin:3px 0}
-  #help .hb b{color:var(--fg)} #help .hb code{font:12px ui-monospace,Consolas,monospace;color:#9fe;background:#10241f;border-radius:4px;padding:0 4px}
-  #help .hb table{border-collapse:collapse;width:100%} #help .hb td{padding:5px 4px;border-bottom:1px solid #1c1c24}
-  #help .hb td:first-child{width:130px;white-space:nowrap}
-  #help .hf{display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:1px solid #1c1c24;margin-top:8px}
-  #help .dots{display:flex;gap:5px;flex:1}
-  #help .dots button{width:8px;height:8px;padding:0;border-radius:50%;border:0;background:#33333f;cursor:pointer}
-  #help .dots button.on{background:var(--acc);width:20px;border-radius:4px}
-  #help .hf .b{background:#16161d;color:var(--fg);border:1px solid #30303a;border-radius:7px;padding:6px 14px;font:inherit;cursor:pointer}
-  #help .hf .b:hover{background:#1d1d27;border-color:#4a4a58}
-  #help .hf .b.pri{background:#1a3a4a;border-color:#2b6a86;color:#fff}
-  #help .hf .b.pri:hover{background:#21495c}
-  #help .hf .b:disabled{opacity:.35;cursor:default}
-  #help :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+  .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);padding:16px}
+  .modal[hidden]{display:none}
+  .modal .hc{width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#0d0d12;border:1px solid #2a2a35;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:fade .18s ease-out}
+  .modal .hh{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+  .modal .step{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+  .modal .hh .sp{flex:1}
+  .modal .x{background:none;border:0;color:var(--mut);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}
+  .modal .x:hover{color:var(--fg);background:#1b1b23}
+  .modal h2{margin:6px 16px 0;font-size:19px;color:#fff}
+  .modal .hb{padding:6px 16px 4px;overflow:auto;line-height:1.55;color:#c9c9d3}
+  .modal .hb ul{padding-left:18px;margin:6px 0} .modal .hb li{margin:3px 0}
+  .modal .hb b{color:var(--fg)} .modal .hb code{font:12px ui-monospace,Consolas,monospace;color:#9fe;background:#10241f;border-radius:4px;padding:0 4px}
+  .modal .hb table{border-collapse:collapse;width:100%} .modal .hb td{padding:5px 4px;border-bottom:1px solid #1c1c24}
+  .modal .hb td:first-child{width:130px;white-space:nowrap}
+  .modal .hf{display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:1px solid #1c1c24;margin-top:8px}
+  .modal .dots{display:flex;gap:5px;flex:1}
+  .modal .dots button{width:8px;height:8px;padding:0;border-radius:50%;border:0;background:#33333f;cursor:pointer}
+  .modal .dots button.on{background:var(--acc);width:20px;border-radius:4px}
+  .modal .hf .b{background:#16161d;color:var(--fg);border:1px solid #30303a;border-radius:7px;padding:6px 14px;font:inherit;cursor:pointer}
+  .modal .hf .b:hover{background:#1d1d27;border-color:#4a4a58}
+  .modal .hf .b.pri{background:#1a3a4a;border-color:#2b6a86;color:#fff}
+  .modal .hf .b.pri:hover{background:#21495c}
+  .modal .hf .b:disabled{opacity:.35;cursor:default}
+  .modal :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
   #panel button.act{margin:8px 0;background:#16161d;color:#e4e4ea;border:1px solid #30303a;border-radius:6px;padding:5px 10px;cursor:pointer}
 </style>
 </head>
@@ -149,10 +225,13 @@
   <section id="ctl">
     <header>
       <span class="brand">nnviz</span><span class="sub3d">3D</span><span class="sp"></span>
-      <button id="helpbtn" class="hbtn" title="tutorial and shortcuts (?)" aria-label="open tutorial">?</button>
-      <button id="collapse" class="hbtn" title="collapse / expand controls" aria-label="collapse controls" aria-expanded="true">▾</button>
+      <button id="learnbtn" class="learnbtn" title="Explain neural networks: a short course from the basics (L)" aria-label="Open neural networks explainer">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="3" cy="4" r="1.6"/><circle cx="3" cy="12" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="13" cy="4" r="1.6"/><circle cx="13" cy="12" r="1.6"/><path d="M4.5 4.6 6.6 7.3M4.5 11.4 6.6 8.7M9.4 7.3 11.5 4.6M9.4 8.7 11.5 11.4"/></g></svg>
+        Explain NNs</button>
+      <button id="helpbtn" class="hbtn" title="Tutorial and shortcuts (?)" aria-label="Open tutorial">?</button>
+      <button id="collapse" class="hbtn" title="Collapse / expand controls" aria-label="Collapse controls" aria-expanded="true">▾</button>
     </header>
-    <nav class="tabs" role="tablist" aria-label="control groups">
+    <nav class="tabs" role="tablist" aria-label="Control groups">
       <button role="tab" data-tab="model" aria-selected="true">Model</button>
       <button role="tab" data-tab="view" aria-selected="false">View</button>
       <button role="tab" data-tab="display" aria-selected="false">Display</button>
@@ -162,88 +241,108 @@
       <div class="sec">Model</div>
       <div class="row">
         <select id="model" class="grow"></select>
-        <label class="chip" title="show / hide the model card (key: I)"><input type="checkbox" id="cardtoggle" checked>info</label>
+        <label class="chip" title="Show / hide the model card (key: I)"><input type="checkbox" id="cardtoggle" checked>Info</label>
       </div>
       <div class="row">
-        <label class="chip" title="download torchvision pretrained weights on load (needs internet)"><input type="checkbox" id="pre">pretrained weights</label>
+        <label class="chip" title="Download torchvision pretrained weights on load (needs internet)"><input type="checkbox" id="pre">Pretrained weights</label>
         <span class="grow"></span>
-        <button id="upbtn" title="import a .py (build()) or a .pt/.pth whole-module file">import…</button>
+        <button id="upbtn" title="Import a .py (build()) or a .pt/.pth whole-module file">Import…</button>
         <input type="file" id="file" accept=".py,.pt,.pth" style="display:none">
       </div>
       <div id="arch"></div>
-      <details><summary>import options</summary>
-        <input id="inshape" placeholder="input spec for .pt files: 1,3,224,224  or  int:1,32:50257">
+      <details><summary>Import options</summary>
+        <input id="inshape" placeholder="Input spec for .pt files: 1,3,224,224  or  int:1,32:50257">
       </details>
 
       <div class="sec">Input</div>
-      <div class="row"><select id="cls" class="grow"></select><button id="resample">new noise</button></div>
+      <div class="row"><select id="cls" class="grow"></select><button id="resample">New noise</button></div>
       <div class="row"><span id="pred"></span></div>
       <div id="ctrls"></div>
       </div>
 
       <div class="pane" data-pane="view" role="tabpanel">
       <div class="sec">Layout</div>
-      <div class="row">
-        <div class="seg" id="layoutseg">
-          <button data-v="line">line</button><button data-v="snake">folded grid</button><button data-v="spiral">spiral</button>
-        </div>
-        <select id="layout" style="display:none"><option value="line">line</option><option value="snake">folded grid</option><option value="spiral">spiral</option></select>
+      <div class="vlist" id="layoutseg" role="radiogroup" aria-label="Layout">
+        <button data-v="line" role="radio"><i></i><span>Line</span><small>Straight path · supports depth levels</small></button>
+        <button data-v="snake" role="radio"><i></i><span>Folded grid</span><small>Compact rows for deep models</small></button>
+        <button data-v="spiral" role="radio"><i></i><span>Spiral</span><small>Coiled path · overview of long models</small></button>
       </div>
-      <div class="row">
-        <button id="fit" class="grow" title="frame the whole model (F)">fit view</button>
-        <button id="along" class="grow" title="camera behind the input, looking along the data flow">look along flow</button>
+      <select id="layout" style="display:none"><option value="line">Line</option><option value="snake">Folded grid</option><option value="spiral">Spiral</option></select>
+
+      <div class="sec">Camera</div>
+      <div class="vlist">
+        <button id="fit" title="Frame the whole model (F)"><span>Fit view</span><kbd>F</kbd></button>
+        <button id="along" title="Camera behind the input, looking along the data flow"><span>Look along flow</span><small>From the input</small></button>
       </div>
 
       <div class="sec">Colour</div>
-      <div class="row"><label for="metric" style="color:var(--mut);font-size:12px;white-space:nowrap">colour layers by</label>
-        <select id="metric" class="grow"><option value="type">layer type</option><option value="params">parameters</option>
-          <option value="flops">FLOPs (approx.)</option><option value="size">activation size</option>
-          <option value="sparsity">sparsity (zeros)</option><option value="mean_abs">mean |activation|</option>
-          <option value="residual">residual change ‖F(x)‖/‖x‖</option></select></div>
+      <div class="row"><label for="metric" style="color:var(--mut);font-size:12px;white-space:nowrap">Colour layers by</label>
+        <select id="metric" class="grow"><option value="type">Layer type</option><option value="params">Parameters</option>
+          <option value="flops">FLOPs (approx.)</option><option value="size">Activation size</option>
+          <option value="sparsity">Sparsity (zeros)</option><option value="mean_abs">Mean |activation|</option>
+          <option value="residual">Residual change ‖F(x)‖/‖x‖</option></select></div>
 
       <div class="sec">Blocks</div>
       <div class="row">
-        <button id="collapseall" class="grow" title="fold every repeated block into a single node">collapse all</button>
-        <button id="expandall" class="grow" title="show every layer inside every block">expand all</button>
+        <button id="collapseall" class="grow" title="Fold every repeated block into a single node">Collapse all</button>
+        <button id="expandall" class="grow" title="Show every layer inside every block">Expand all</button>
       </div>
       <div class="chips" style="margin-top:6px">
-        <label class="chip" title="fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">collapse blocks</label>
-        <label class="chip" title="animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>fold animation</label>
-        <label class="chip" title="coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>block floors</label>
+        <label class="chip" title="Fold repeated blocks (residual blocks, Transformer layers…) into single nodes; double-click one to expand"><input type="checkbox" id="grpblocks">Collapse blocks</label>
+        <label class="chip" title="Animate layers folding into blocks and blocks unfolding into layers"><input type="checkbox" id="animblocks" checked>Fold animation</label>
+        <label class="chip" title="Coloured floor under the layers of each expanded block"><input type="checkbox" id="showfloor" checked>Block floors</label>
       </div>
       </div>
 
       <div class="pane" data-pane="display" role="tabpanel">
       <div class="sec">Data</div>
       <div class="chips">
-        <label class="chip" title="live activation volumes for the current input"><input type="checkbox" id="showact" checked>activations</label>
-        <label class="chip" title="weight lines / kernels between layers"><input type="checkbox" id="showw" checked>weights</label>
-        <label class="chip" title="sliding conv kernels and sweeps"><input type="checkbox" id="showk" checked>kernel animation</label>
-        <label class="chip" title="layer names and shapes"><input type="checkbox" id="showl" checked>labels</label>
+        <label class="chip" title="Live activation volumes for the current input"><input type="checkbox" id="showact" checked>Activations</label>
+        <label class="chip" title="Weight lines / kernels between layers"><input type="checkbox" id="showw" checked>Weights</label>
+        <label class="chip" title="Sliding conv kernels and sweeps"><input type="checkbox" id="showk" checked>Kernel animation</label>
+        <label class="chip" title="Layer names and shapes"><input type="checkbox" id="showl" checked>Labels</label>
       </div>
       <div class="sec">Structure</div>
       <div class="chips">
-        <label class="chip" title="translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>size envelope</label>
-        <label class="chip" id="depthchip" title="line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>show depth <small style="opacity:.55;margin-left:3px">line view only</small></label>
+        <label class="chip" title="Translucent tube whose width follows the tensor size along the main path"><input type="checkbox" id="showenv" checked>Size envelope</label>
+        <label class="chip" id="depthchip" title="Line view: lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom. Only for models with 3+ levels"><input type="checkbox" id="showdepth" checked>Show depth <small style="opacity:.55;margin-left:3px">Line view only</small></label>
       </div>
       <div class="sec">Performance</div>
       <div class="chips">
-        <label class="chip" title="fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>easy rendering</label>
+        <label class="chip" title="Fewer weight lines, merged geometry, sweeps only on the selected layer, render only when something changes"><input type="checkbox" id="easy" checked>Easy rendering</label>
       </div>
       </div>
       <div id="status" role="status" aria-live="polite"></div>
     </div>
   </section>
 </div>
-<div id="bottom"><div id="gallery"></div><canvas id="profile" width="640" height="64" title="tensor size along the main path (log scale) — click to jump"></canvas></div>
+<div id="bottom"><div id="gallery"></div><canvas id="profile" width="640" height="64" title="Tensor size along the main path (log scale) — click to jump"></canvas></div>
 <div id="title"></div>
 <div id="card"></div>
 <div id="legend"></div>
 <div id="panel"></div>
-<div id="hint">drag: orbit · right-drag: pan · wheel: zoom · click a layer · <kbd>?</kbd> help</div>
-<div id="help" role="dialog" aria-modal="true" aria-labelledby="htitle" hidden>
+<div id="hint">Drag: orbit · Right-drag: pan · Wheel: zoom · Click a layer · <kbd>?</kbd> Help</div>
+<div id="loading" role="status" aria-live="polite" hidden><span class="spin" aria-hidden="true"></span><div><b id="loadtitle">Loading</b><span id="loadmsg"></span></div></div>
+<div id="learn" class="modal" role="dialog" aria-modal="true" aria-labelledby="ltitle" hidden>
   <div class="hc">
-    <div class="hh"><span class="step" id="hstep"></span><span class="sp"></span><button class="x" id="hclose" aria-label="close tutorial" title="close (Esc)">×</button></div>
+    <div class="hh"><span class="step" id="lstep"></span><span class="sp"></span><button class="x" id="lclose" aria-label="Close" title="Close (Esc)">×</button></div>
+    <div class="lw">
+      <nav id="lnav" aria-label="Chapters"></nav>
+      <div class="lc">
+        <h2 id="ltitle"></h2>
+        <div class="hb" id="lbody"></div>
+        <div class="hf">
+          <div class="prog"><i id="lprog"></i></div>
+          <button class="b" id="lprev">Previous</button>
+          <button class="b pri" id="lnext">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="help" class="modal" role="dialog" aria-modal="true" aria-labelledby="htitle" hidden>
+  <div class="hc">
+    <div class="hh"><span class="step" id="hstep"></span><span class="sp"></span><button class="x" id="hclose" aria-label="Close tutorial" title="Close (Esc)">×</button></div>
     <h2 id="htitle"></h2>
     <div class="hb" id="hbody"></div>
     <div class="hf">
@@ -259,19 +358,19 @@
 <script>
 "use strict";
 const KIND = {
-  input:      {color:"#ffffff", label:"input",        desc:"image as a single slab"},
-  conv:       {color:"#26c6da", label:"convolution",  desc:"C slabs; a k×k×C_in kernel cuboid slides over the input"},
-  linear:     {color:"#66bb6a", label:"linear",       desc:"column of neurons, dense weight lines"},
-  attention:  {color:"#ab47bc", label:"attention",    desc:"X → Q,K,V → per-head softmax(QKᵀ) maps → ·V → concat → W_o"},
-  norm:       {color:"#ffca28", label:"normalization",desc:"cage that rescales the tensor"},
-  activation: {color:"#ff9800", label:"activation",   desc:"gate plate showing the function"},
-  pool:       {color:"#bcaaa4", label:"pooling",      desc:"sliding window, no weights"},
-  op:         {color:"#90a4ae", label:"tensor op",    desc:"reshape / reduce / add"},
-  embedding:  {color:"#4db6ac", label:"embedding",    desc:"lookup table: token id → vector"},
-  moe:        {color:"#d4e157", label:"mixture of experts", desc:"router plane (tokens × experts), top-k experts per token"},
-  upsample:   {color:"#5c6bc0", label:"up-sampling",  desc:"enlarges spatial size, no parameters"},
-  group:      {color:"#b0bec5", label:"collapsed block", desc:"repeated block shown as one node (double-click to expand)"},
-  output:     {color:"#ffffff", label:"output",       desc:"logits"},
+  input:      {color:"#ffffff", label:"Input",        desc:"Image as a single slab"},
+  conv:       {color:"#26c6da", label:"Convolution",  desc:"C slabs; a k×k×C_in kernel cuboid slides over the input"},
+  linear:     {color:"#66bb6a", label:"Linear",       desc:"Column of neurons, dense weight lines"},
+  attention:  {color:"#ab47bc", label:"Attention",    desc:"X → Q,K,V → per-head softmax(QKᵀ) maps → ·V → concat → W_o"},
+  norm:       {color:"#ffca28", label:"Normalization",desc:"Cage that rescales the tensor"},
+  activation: {color:"#ff9800", label:"Activation",   desc:"Gate plate showing the function"},
+  pool:       {color:"#bcaaa4", label:"Pooling",      desc:"Sliding window, no weights"},
+  op:         {color:"#90a4ae", label:"Tensor op",    desc:"Reshape / reduce / add"},
+  embedding:  {color:"#4db6ac", label:"Embedding",    desc:"Lookup table: token id → vector"},
+  moe:        {color:"#d4e157", label:"Mixture of experts", desc:"Router plane (tokens × experts), top-k experts per token"},
+  upsample:   {color:"#5c6bc0", label:"Up-sampling",  desc:"Enlarges spatial size, no parameters"},
+  group:      {color:"#b0bec5", label:"Collapsed block", desc:"Repeated block shown as one node (double-click to expand)"},
+  output:     {color:"#ffffff", label:"Output",       desc:"Logits"},
 };
 const CELL = 0.5, SLAB = 0.75;
 const BASE = [38,38,54], HI = [90,220,255], NEG = [255,79,163];
@@ -387,9 +486,9 @@ function updateDepthChip(){
   const hasLv = !!(G.levels && G.levels.length >= 3), line = $("layout").value === "line";
   $("showdepth").disabled = !(hasLv && line);
   $("depthchip").style.opacity = hasLv && line ? "" : "0.45";
-  $("depthchip").title = !hasLv ? "depth needs a model with 3 or more resolution levels (U-Net, VAE, ResNet, VGG…)"
-    : !line ? "depth is only available in the line view: switch View to “line”"
-    : "lower each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom";
+  $("depthchip").title = !hasLv ? "Depth needs a model with 3 or more resolution levels (U-Net, VAE, ResNet, VGG…)"
+    : !line ? "Depth is only available in the line view: switch View to “Line”"
+    : "Lowers each layer by its resolution level (how many times the feature map has been downsampled), so a U-Net draws a U with the bottleneck at the bottom";
 }
 function updateBlockButtons(){
   if (!G) return;
@@ -397,8 +496,8 @@ function updateBlockButtons(){
   const n = G.blockCount || 0;
   $("collapseall").disabled = n === 0 || G.collapsedCount === n;
   $("expandall").disabled = n === 0 || G.collapsedCount === 0;
-  $("collapseall").title = n ? `fold all ${n} blocks into single nodes` : "this model has no repeated blocks";
-  $("expandall").title = n ? `show the layers inside all ${n} blocks` : "this model has no repeated blocks";
+  $("collapseall").title = n ? `Fold all ${n} blocks into single nodes` : "This model has no repeated blocks";
+  $("expandall").title = n ? `Show the layers inside all ${n} blocks` : "This model has no repeated blocks";
 }
 // ---------- fold / unfold animation ----------
 // 1 camera rises to an overview · 2 layers fold into their block *in place* (same colour) · 3 blocks glide into the
@@ -1125,7 +1224,7 @@ function buildDepthRuler(){
   const add3 = (arr, mat) => { const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(arr, 3));
     const l = new T.LineSegments(g, mat); l.frustumCulled = false; world.add(l); return l; };
   const head = document.createElement("div"); head.className = "lb rl";
-  head.innerHTML = `<b style="color:#b0bec5;font-size:11px;font-weight:500">depth · resolution level</b><span>lower = more downsampled</span>`;
+  head.innerHTML = `<b style="color:#b0bec5;font-size:11px;font-weight:500">Depth · resolution level</b><span>Lower = more downsampled</span>`;
   $("labels").appendChild(head); labels.push({d: head, pos: new T.Vector3(x0 - 1.2, top + 2.5, 0), node: null, always: true});
   lv.forEach(l => {
     const y = -l.level*step, hot = l.level === bl;
@@ -1162,7 +1261,7 @@ function renderProfile(){
     c.fillStyle = "#ffd54f"; c.beginPath(); c.arc(X(bi), Y(ls[bi]), 4, 0, 7); c.fill();
   }
   c.fillStyle = "#8a8a96"; c.font = "10px system-ui";
-  c.fillText("tensor size along the main path (log)", 8, H_ - 2);
+  c.fillText("Tensor size along the main path (log)", 8, H_ - 2);
   c.textAlign = "right"; c.fillText(`${Math.round(10**lo).toLocaleString()} → ${Math.round(10**hi).toLocaleString()} values`, W_ - 8, H_ - 2); c.textAlign = "left";
 }
 
@@ -1268,13 +1367,13 @@ function showPanel(){
   const p = document.getElementById("panel");
   if (!sel){ p.style.display = "none"; return; }
   const n = sel, k = KIND[n.kind];
-  const rows = [["kind", k.label], ["class", n.label], ["output shape", `[${n.shape.join(", ")}]`],
-                ["neurons (units)", n.units], ["activation size", n.numel.toLocaleString() + " values"],
+  const rows = [["Kind", k.label], ["Class", n.label], ["Output shape", `[${n.shape.join(", ")}]`],
+                ["Neurons (units)", n.units], ["Activation size", n.numel.toLocaleString() + " values"],
                 ["FLOPs (approx.)", fmtParams(n.flops).replace(" ", "") + "FLOP"],
-                ...(n.sampled ? [["shown (sampled)", "[" + n.dshape.join("×") + "]"]] : []), ["parameters", n.params.toLocaleString()],
+                ...(n.sampled ? [["Shown (sampled)", "[" + n.dshape.join("×") + "]"]] : []), ["Parameters", n.params.toLocaleString()],
                 ...Object.entries(n.attrs).map(([a,v]) => [a, Array.isArray(v) ? v.join("×") : v]),
                 ...(() => { const sk = G.edges.filter(e => e.skip && (e.src === n.name || e.dst === n.name));
-                  return sk.length ? [["skip links", sk.map(e => `<span style="color:#76ff03">↔</span> ${e.src === n.name ? e.dst : e.src} (${e.join === "cat" ? "concat" : "add"})`).join("<br>")]] : []; })()];
+                  return sk.length ? [["Skip links", sk.map(e => `<span style="color:#76ff03">↔</span> ${e.src === n.name ? e.dst : e.src} (${e.join === "cat" ? "concat" : "add"})`).join("<br>")]] : []; })()];
   p.innerHTML = `<h2 style="color:${k.color}">${n.name}</h2><div class="k">${n.label}</div>${describeLayer(n)}
     <table>${rows.map(r => `<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table><div id="extras"></div>`;
   p.style.display = "block";
@@ -1283,11 +1382,11 @@ function showPanel(){
   const w = n.weights;
   if (w && w.qkv){ /* attention: projections listed below */ }
   else if (w && n.kind === "conv"){
-    add(`kernels [out=${w.shape[0]}, in=${w.shape[1]}, ${w.shape[2]}×${w.shape[3]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => {
+    add(`Kernels [out=${w.shape[0]}, in=${w.shape[1]}, ${w.shape[2]}×${w.shape[3]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => {
       w.data.forEach(row => { const d = document.createElement("div");
         row.forEach(kn => { const c = document.createElement("canvas"); heat(c, kn, 8); d.appendChild(c); }); ex.appendChild(d); }); });
   } else if (w){
-    add(`weight matrix [out=${w.shape[0]}, in=${w.shape[1]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => { const c = document.createElement("canvas");
+    add(`Weight matrix [out=${w.shape[0]}, in=${w.shape[1]}]` + (w.data.length < w.shape[0] || w.data[0].length < w.shape[1] ? ` — showing ${w.data.length}×${w.data[0].length}` : ""), () => { const c = document.createElement("canvas");
       heat(c, w.data, Math.max(3, Math.min(14, 280/Math.max(w.data.length, w.data[0].length)))); ex.appendChild(c); });
   }
   if (w && w.qkv){
@@ -1296,21 +1395,21 @@ function showPanel(){
       add(`${nm} [out, in]`, () => { const c = document.createElement("canvas"); heat(c, M, 14); ex.appendChild(c); }));
   }
   if (n.kind === "group"){
-    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = "expand this block";
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = "Expand this block";
     btn.onclick = () => transition(() => expanded.add(n.name)); ex.appendChild(btn);
-    add("layers inside", () => { const d = document.createElement("div"); d.className = "k";
+    add("Layers inside", () => { const d = document.createElement("div"); d.className = "k";
       d.textContent = Object.entries(n.memberKinds).map(([k2, v]) => `${v}× ${k2}`).join(" · "); ex.appendChild(d); });
   } else if (n.block){
-    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = `collapse block "${n.block}"`;
+    const btn = document.createElement("button"); btn.className = "act"; btn.textContent = `Collapse block "${n.block}"`;
     btn.onclick = () => transition(() => expanded.delete(n.block)); ex.appendChild(btn);
   }
   const a = A && A.acts[n.actKey || n.name];
-  if (a && a.stats) add("statistics for the current input", () => { const d = document.createElement("div");
-    d.innerHTML = `sparsity ${(a.stats.sparsity*100).toFixed(1)} % · mean |a| ${a.stats.mean_abs.toPrecision(3)} · std ${a.stats.std.toPrecision(3)}` +
-      (a.delta != null ? `<br>residual change ‖F(x)‖/‖x‖ = ${a.delta.toPrecision(3)}` : ""); ex.appendChild(d); });
-  if (a && a.gates) add("router gates (rows = tokens, cols = experts)", () => { const c = document.createElement("canvas"); heat(c, a.gates, 10); ex.appendChild(c); });
-  if (a && a.attn) add("attention maps (rows = query, cols = key)", () => a.attn.forEach(m => { const c = document.createElement("canvas"); heat(c, m, 10); ex.appendChild(c); }));
-  if (a && n.kind !== "input") add("mean activation per unit", () => { const c = document.createElement("canvas"); heat(c, [a.units], 12); ex.appendChild(c); });
+  if (a && a.stats) add("Statistics for the current input", () => { const d = document.createElement("div");
+    d.innerHTML = `Sparsity ${(a.stats.sparsity*100).toFixed(1)} % · Mean |a| ${a.stats.mean_abs.toPrecision(3)} · Std ${a.stats.std.toPrecision(3)}` +
+      (a.delta != null ? `<br>Residual change ‖F(x)‖/‖x‖ = ${a.delta.toPrecision(3)}` : ""); ex.appendChild(d); });
+  if (a && a.gates) add("Router gates (rows = tokens, cols = experts)", () => { const c = document.createElement("canvas"); heat(c, a.gates, 10); ex.appendChild(c); });
+  if (a && a.attn) add("Attention maps (rows = query, cols = key)", () => a.attn.forEach(m => { const c = document.createElement("canvas"); heat(c, m, 10); ex.appendChild(c); }));
+  if (a && n.kind !== "input") add("Mean activation per unit", () => { const c = document.createElement("canvas"); heat(c, [a.units], 12); ex.appendChild(c); });
 }
 
 // ---------- loop ----------
@@ -1340,19 +1439,20 @@ function animate(t){
 // ---------- data ----------
 const $ = id => document.getElementById(id);
 function setStatus(msg, bad){ const el = $("status"); el.textContent = msg; el.title = msg; el.style.color = bad ? "#ff6e6e" : ""; }
-function syncSeg(){ document.querySelectorAll("#layoutseg button").forEach(b => b.classList.toggle("on", b.dataset.v === $("layout").value)); }
+function syncSeg(){ document.querySelectorAll("#layoutseg button").forEach(b => { const on = b.dataset.v === $("layout").value;
+  b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }); }
 function renderLegend(){
   const present = new Set(G.nodes.map(n => n.kind));
   const items = Object.entries(KIND).filter(([k]) => present.has(k) && k !== "input" && k !== "output");
   const el = $("legend"), closed = el.classList.contains("closed");
   el.innerHTML = `<div class="lh" id="lh"><span>Layer types in this model</span><b>${closed ? "▸" : "▾"}</b></div><div class="items">` +
     items.map(([k, v]) => `<div class="it" title="${v.desc}"><i class="sw" style="background:${v.color}"></i><span class="nm">${v.label}</span><span class="ds">${v.desc}</span></div>`).join("") +
-    `</div><div class="foot"><span><b style="color:#5cdcff">■</b> positive / <b style="color:#ff4fa3">■</b> negative activation</span>` +
-    `<span><b style="color:#fff">─</b> / <b style="color:#ff4fa3">─</b> weight sign</span>` +
-    `<span title="white: x + F(x) on the main path · lavender: a side branch added or reused later (e.g. timestep embedding) · teal: concatenated skip · gold: concatenated skip that jumps over the bottleneck">` +
-    `<b style="color:#fff">━</b> residual add · <b style="color:#b39ddb">━</b> side branch · <b style="color:#4dd0e1">━</b> concat skip · <b style="color:#ffd54f">━</b> bypasses bottleneck</span>` +
+    `</div><div class="foot"><span><b style="color:#5cdcff">■</b> Positive / <b style="color:#ff4fa3">■</b> negative activation</span>` +
+    `<span><b style="color:#fff">─</b> / <b style="color:#ff4fa3">─</b> Weight sign</span>` +
+    `<span title="White: x + F(x) on the main path · Lavender: a side branch added or reused later (e.g. timestep embedding) · Teal: concatenated skip · Gold: concatenated skip that jumps over the bottleneck">` +
+    `<b style="color:#fff">━</b> Residual add · <b style="color:#b39ddb">━</b> Side branch · <b style="color:#4dd0e1">━</b> Concat skip · <b style="color:#ffd54f">━</b> Bypasses bottleneck</span>` +
     (metricRange ? `<div class="mbar"><span>${$("metric").selectedOptions[0].text}: ${fmtMetric(metricRange.raw[0])}</span><i></i><span>${fmtMetric(metricRange.raw[1])}</span></div>` : "") +
-    `<span>click a layer · double-click a block to expand</span></div>`;
+    `<span>Click a layer · double-click a block to expand</span></div>`;
   $("lh").onclick = () => { el.classList.toggle("closed"); renderLegend(); fitLeft(); };
   fitLeft();
 }
@@ -1361,12 +1461,12 @@ function fitLeft(){ document.documentElement.style.setProperty("--legend-h", ($(
 
 async function loadActs(){
   const extra = Object.entries(paramVals).map(([k, v]) => `&p_${k}=${v}`).join("");
-  const r = await fetch(`/api/activations?cls=${$("cls").value}&seed=${seed}${extra}`);
-  A = await r.json();
+  A = await withLoading("Computing activations", "Running the current input through the network",
+    async () => (await fetch(`/api/activations?cls=${$("cls").value}&seed=${seed}${extra}`)).json());
   if (A.error){ setStatus(A.error, true); A = null; return; }
   let txt = "";
   if (A.pred != null){
-    const nm = G.classes.length === A.n_out ? G.classes[A.pred] : `class #${A.pred}`;
+    const nm = G.classes.length === A.n_out ? G.classes[A.pred] : `Class #${A.pred}`;
     txt = `→ ${nm} (${(A.prob*100).toFixed(0)}%)`;
   }
   $("pred").textContent = txt;
@@ -1412,15 +1512,16 @@ function renderArch(){
   if (!an){ el.textContent = ""; return; }
   const bn = an.bottleneck ? G0.nodes.find(n => n.name === an.bottleneck) : null;
   el.innerHTML = {
-    hourglass: `<b>◆ hourglass</b> (encoder → bottleneck → decoder)` + (bn ? ` · deepest level <b>${bn.tshape.join("×")}</b> = ${bn.numel.toLocaleString()} values` : "") +
+    hourglass: `<b>◆ Hourglass</b> (encoder → bottleneck → decoder)` + (bn ? ` · Deepest level <b>${bn.tshape.join("×")}</b> = ${bn.numel.toLocaleString()} values` : "") +
                (an.spatial_ratio > 1.5 ? ` · ${Math.round(an.spatial_ratio)}× smaller spatially` : "") + (an.stochastic ? " · stochastic latent" : "") + (an.bypass.count ? ` · ${an.bypass.count} skip links bypass it` : ""),
-    funnel: "▽ funnel: information is progressively compressed (classifier-like)",
-    expansion: "△ expansion: a small code is progressively expanded (generator-like)",
-    flat: "▭ roughly constant width (Transformer-like: the stream keeps its size)",
+    funnel: "▽ Funnel: information is progressively compressed (classifier-like)",
+    expansion: "△ Expansion: a small code is progressively expanded (generator-like)",
+    flat: "▭ Roughly constant width (Transformer-like: the stream keeps its size)",
   }[an.kind] || "";
 }
 async function loadGraph(){
-  G0 = await (await fetch("/api/graph")).json();
+  loadStep("Fetching the traced graph");
+  G0 = await withLoading("Loading model", "Fetching the traced graph", async () => (await fetch("/api/graph")).json());
   G0.nodes.forEach(n => n.path = n.path || "");
   sel = null; A = null; expanded.clear();
   $("grpblocks").checked = G0.nodes.length > 60;
@@ -1437,7 +1538,7 @@ async function loadGraph(){
   }
   rebuildAll(false);
   setStatus(`${G.name} · ${fmtParams(G.params)} params · ${G0.nodes.length} nodes · traced via ${G.tracer} · ` +
-            `loaded in ${G.load_s}s · * = display is sampled (≤24 channels/features, ≤12×12 cells, ≤4 heads)`);
+            `Loaded in ${G.load_s}s · * = Display is sampled (≤24 channels/features, ≤12×12 cells, ≤4 heads)`);
   $("model").value = G.model;
   renderLegend(); syncSeg();
   renderCard(); renderTitle();
@@ -1487,11 +1588,27 @@ async function post(url, body){
   if (j.error) throw new Error(j.error);
   return j;
 }
-async function busy(msg, fn){
+// ---- loading indicator: nested calls share one chip; the outermost sets the title, inner steps update the detail line ----
+let loadDepth = 0, loadTimer = null;
+function loadOn(title, detail){
+  if (loadDepth++ === 0){
+    $("loadtitle").textContent = title; $("loadmsg").textContent = detail || "";
+    clearTimeout(loadTimer);   // skip the flash for operations under 120 ms
+    loadTimer = setTimeout(() => { $("loading").hidden = false; document.body.classList.add("isloading"); }, 120);
+  } else if (detail) $("loadmsg").textContent = detail;
+}
+function loadStep(detail){ if (loadDepth) $("loadmsg").textContent = detail; }
+function loadOff(){
+  if (--loadDepth > 0) return;
+  loadDepth = 0; clearTimeout(loadTimer); $("loading").hidden = true; document.body.classList.remove("isloading");
+}
+async function withLoading(title, detail, fn){ loadOn(title, detail); try { return await fn(); } finally { loadOff(); } }
+
+async function busy(msg, fn, detail){
   document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = true);
-  setStatus(msg);
+  setStatus(msg); loadOn(msg.replace(/…$/, ""), detail || "Please wait…");
   try { await fn(); } catch (e) { setStatus(String(e.message || e), true); }
-  finally { document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = false); updateBlockButtons();
+  finally { loadOff(); document.querySelectorAll("#ctl .body select, #ctl .body button, #ctl .body input").forEach(e => e.disabled = false); updateBlockButtons();
     if ($("upbtn").dataset.locked) $("upbtn").disabled = true; }
 }
 
@@ -1530,43 +1647,44 @@ const HELP = [
     <li>The legend (bottom-left) explains the colours.</li></ul>
     Reopen this guide any time with the <kbd>?</kbd> button or key.`],
   ["Move around", `<table>
-    <tr><td>Left-drag</td><td>orbit around the model</td></tr>
-    <tr><td>Right-drag</td><td>pan</td></tr>
-    <tr><td>Mouse wheel</td><td>zoom</td></tr>
-    <tr><td><kbd>F</kbd> / <b>fit view</b></td><td>frame the whole model</td></tr>
-    <tr><td><b>look along flow</b></td><td>put the camera behind the input, looking down the data path</td></tr></table>`],
+    <tr><td>Left-drag</td><td>Orbit around the model</td></tr>
+    <tr><td>Right-drag</td><td>Pan</td></tr>
+    <tr><td>Mouse wheel</td><td>Zoom</td></tr>
+    <tr><td><kbd>F</kbd> / <b>Fit view</b></td><td>Frame the whole model</td></tr>
+    <tr><td><b>Look along flow</b></td><td>Put the camera behind the input, looking down the data path</td></tr></table>`],
   ["Pick a model and an input", `In the <b>Model</b> tab:
     <ul><li><b>Model list</b>: grouped zoo (CNNs, Transformers, generative…). The number after each name is its parameter count.</li>
-    <li><b>pretrained weights</b>: download real torchvision weights on load (needs internet); otherwise weights are random.</li>
-    <li><b>info</b> (<kbd>I</kbd>): the model card: what it is known for, what it introduced, what to look for.</li>
-    <li><b>Input</b>: choose a class / sample or draw <b>new noise</b>. The green pill shows the prediction. Some models add sliders here
+    <li><b>Pretrained weights</b>: download real torchvision weights on load (needs internet); otherwise weights are random.</li>
+    <li><b>Info</b> (<kbd>I</kbd>): the model card: what it is known for, what it introduced, what to look for.</li>
+    <li><b>Input</b>: choose a class / sample or draw <b>New noise</b>. The green pill shows the prediction. Some models add sliders here
     (DDPM timestep, GAN latent interpolation).</li></ul>`],
   ["Inspect a layer", `<b>Click any layer</b> to open the inspector on the right: plain-language description, input/output shapes,
     parameters, FLOPs, kernels or weight matrices, attention maps, router gates.
     <ul><li>Its <b>skip connections</b> light up green and the layer at the other end is outlined.</li>
     <li>The <b>profile strip</b> at the bottom plots tensor size along the main path; click it to jump to that layer.</li></ul>`],
   ["Arrange and colour", `In the <b>View</b> tab:
-    <ul><li><b>Layout</b>: <i>line</i>, <i>folded grid</i> (compact for deep nets) or <i>spiral</i>.</li>
+    <ul><li><b>Layout</b>: <i>Line</i>, <i>Folded grid</i> (compact for deep nets) or <i>Spiral</i>.</li>
     <li><b>Colour layers by</b>: type, parameters, FLOPs, activation size, sparsity, mean |activation| or residual change.
     The legend shows the scale.</li>
     <li><b>Blocks</b>: fold repeated blocks (ResNet stages, Transformer layers) into single nodes. <b>Double-click</b> a block to open it.</li></ul>`],
   ["Tune the display", `In the <b>Display</b> tab, toggle what is drawn:
-    <ul><li><b>Data</b>: activations, weights, kernel animation, labels.</li>
-    <li><b>Structure</b>: <i>size envelope</i> (tube following tensor size) and <i>show depth</i> (line view: layers drop with each
+    <ul><li><b>Data</b>: Activations, Weights, Kernel animation, Labels.</li>
+    <li><b>Structure</b>: <i>Size envelope</i> (tube following tensor size) and <i>Show depth</i> (line view: layers drop with each
     downsampling, so a U-Net draws a U).</li>
-    <li><b>Performance</b>: keep <i>easy rendering</i> on for laptops or large models; turn it off for full quality.</li></ul>`],
-  ["Bring your own model", `<b>Model › import…</b> accepts:
-    <ul><li>a <code>.py</code> file defining <code>build()</code> that returns an <code>nn.Module</code>, optionally
+    <li><b>Performance</b>: keep <i>Easy rendering</i> on for laptops or large models; turn it off for full quality.</li></ul>`],
+  ["Bring your own model", `<b>Model › Import…</b> accepts:
+    <ul><li>A <code>.py</code> file defining <code>build()</code> that returns an <code>nn.Module</code>, optionally
     <code>example_input()</code> and <code>CLASSES</code>. See <code>examples/my_model.py</code>.</li>
-    <li>a whole pickled module <code>.pt</code>/<code>.pth</code>. Give its input under <b>import options</b>, for example
+    <li>A whole pickled module <code>.pt</code>/<code>.pth</code>. Give its input under <b>Import options</b>, for example
     <code>1,3,224,224</code> or <code>int:1,32:50257</code> for token ids.</li></ul>
     Plain state_dicts don't work: wrap them in a <code>.py</code> with <code>build()</code>.`],
   ["Keyboard shortcuts", `<table>
-    <tr><td><kbd>?</kbd></td><td>open this guide</td></tr>
-    <tr><td><kbd>F</kbd></td><td>fit view</td></tr>
-    <tr><td><kbd>I</kbd></td><td>toggle the model card</td></tr>
-    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>previous / next step here; switch tabs when a tab is focused</td></tr>
-    <tr><td><kbd>Esc</kbd></td><td>close this guide</td></tr></table>
+    <tr><td><kbd>?</kbd></td><td>Open this guide</td></tr>
+    <tr><td><kbd>L</kbd></td><td>Open <b>Explain NNs</b>, the short course on neural networks</td></tr>
+    <tr><td><kbd>F</kbd></td><td>Fit view</td></tr>
+    <tr><td><kbd>I</kbd></td><td>Toggle the model card</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Previous / next step here; switch tabs when a tab is focused</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close this guide</td></tr></table>
     <p style="color:var(--mut);margin-top:10px">Tip: the panel remembers its tab and collapsed state.</p>`],
 ];
 let hIdx = 0, hReturn = null;
@@ -1589,6 +1707,7 @@ $("hnext").onclick = () => hIdx === HELP.length - 1 ? helpClose() : helpGo(hIdx 
 $("help").addEventListener("mousedown", e => { if (e.target === $("help")) helpClose(); });
 addEventListener("keydown", e => {
   const open = !$("help").hidden;
+  if (!open && !$("learn").hidden) return;   // the course dialog handles its own keys (learn.js)
   if (open){
     if (e.key === "Escape") helpClose();
     else if (e.key === "ArrowRight") helpGo(hIdx + 1);
@@ -1620,7 +1739,7 @@ function viewAlong(){
     MODELS[m.id] = m;
   });
   if (ms.upload === false){
-    $("upbtn").disabled = true; $("upbtn").title = "model import is disabled on this server";
+    $("upbtn").disabled = true; $("upbtn").title = "Model import is disabled on this server";
     $("upbtn").dataset.locked = "1";
   }
   const qp = new URLSearchParams(location.search);
@@ -1630,8 +1749,8 @@ function viewAlong(){
   if (qp.get("depth") === "0") $("showdepth").checked = false;
   if (qp.get("labels") === "0") { $("showl").checked = false; $("labels").style.display = "none"; }
   if (qp.get("model") && qp.get("model") !== ms.current && ms.models.some(m => m.id === qp.get("model")))
-    await busy(`loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`));
-  await loadGraph();
+    await busy(`Loading ${qp.get("model")}…`, () => post(`/api/load?model=${qp.get("model")}`), "Building the network and tracing its graph");
+  await withLoading("Loading model", "Fetching the traced graph", loadGraph);
   if (qp.get("focus") && nodeBy[qp.get("focus")]){   // look at one layer from above
     const f = nodeBy[qp.get("focus")], c = Wp(f, new T.Vector3(f.b.ox + f.b.sx/2, 0, f.b.oz + f.b.sz/2));
     controls.target.copy(c); camera.position.copy(c).add(new T.Vector3(-4, 17, 15)); controls.update();
@@ -1642,25 +1761,26 @@ function viewAlong(){
   if (qp.get("along")) viewAlong();
   if (qp.get("select") && nodeBy[qp.get("select")]){ sel = nodeBy[qp.get("select")]; showPanel(); refreshSweeps(); }
   if (qp.get("card") === "0") setCard(false);
+  if (qp.get("learn") && window.learnOpen) window.learnOpen(Math.max(0, (parseInt(qp.get("learn")) || 1) - 1));   // ?learn=1 opens the course (?learn=4: chapter 4)
   if (qp.get("help")) helpOpen(Math.max(0, (parseInt(qp.get("help")) || 1) - 1));   // ?help=1 opens the tutorial (?help=3: step 3)
   if (qp.get("tab")) setTab(qp.get("tab"));
   if (qp.get("cam")){   // x,y,z,tx,ty,tz in world units
     const v = qp.get("cam").split(",").map(Number);
     camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); controls.update();
   }
-  sel_.onchange = () => busy(`loading ${sel_.value}…`, async () => {
+  sel_.onchange = () => busy(`Loading ${sel_.value}…`, async () => {
     await post(`/api/load?model=${encodeURIComponent(sel_.value)}&pretrained=${$("pre").checked ? 1 : 0}`);
     await loadGraph();
-  });
-  $("pre").onchange = () => { if ($("pre").checked) setStatus("pretrained weights are downloaded on load (torchvision CNN/ViT only); re-select the model to apply"); };
+  }, $("pre").checked ? "Downloading pretrained weights, then tracing the graph" : "Building the network and tracing its graph");
+  $("pre").onchange = () => { if ($("pre").checked) setStatus("Pretrained weights are downloaded on load (torchvision CNN/ViT only); re-select the model to apply"); };
   $("upbtn").onclick = () => $("file").click();
   $("file").onchange = e => {
     const f = e.target.files[0]; if (!f) return;
-    busy(`importing ${f.name}…`, async () => {
+    busy(`Importing ${f.name}…`, async () => {
       const j = await post(`/api/upload?name=${encodeURIComponent(f.name)}&input=${encodeURIComponent($("inshape").value.trim())}`, f);
       if (![...sel_.options].some(o => o.value === j.model)){ const o = new Option(j.model, j.model); sel_.add(o); }
       await loadGraph();
-    });
+    }, "Uploading the file, building the model and tracing its graph");
     e.target.value = "";
   };
   $("layout").onchange = e => { arrange(e.target.value); rebuild(); fit(); syncSeg(); updateDepthChip(); };
@@ -1690,5 +1810,6 @@ function viewAlong(){
   requestAnimationFrame(animate);
 })();
 </script>
+<script src="learn.js"></script>
 </body>
 </html>

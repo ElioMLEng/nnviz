@@ -167,7 +167,7 @@ class H(BaseHTTPRequestHandler):
                     acts, out = STATE["net"].activations(x)
                     images = []
                     xin = x[0] if isinstance(x, tuple) else x
-                    for name, tens in [("input", xin), ("output", out)]:
+                    for name, tens in [("Input", xin), ("Output", out)]:
                         im = to_image(tens)
                         if im: images.append({"name": name, **im})
                     if STATE["extras"]:

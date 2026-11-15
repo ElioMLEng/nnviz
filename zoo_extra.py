@@ -319,7 +319,7 @@ def _diffusion_extras(x, out):
     if m is None: return {}
     ab = m["ab"]
     est = ((x[0] - (1 - ab) ** 0.5 * out) / ab ** 0.5).clamp(-1.5, 1.5)
-    return {"clean image x₀": m["x0"], "true noise ε": m["eps"], "predicted noise ε̂": out, "x₀ estimate from ε̂": est}
+    return {"Clean image x₀": m["x0"], "True noise ε": m["eps"], "Predicted noise ε̂": out, "x₀ estimate from ε̂": est}
 
 
 def _e(group, build, make, classes, desc, controls=None, extras=None):
@@ -332,13 +332,13 @@ EXTRA = {
     "vae": _e("Autoencoder / GAN", lambda pretrained=False: VAE().eval(), *_gray(28), "Convolutional VAE · μ/logvar + reparameterization"),
     "dcgan-generator": _e("Autoencoder / GAN", lambda pretrained=False: DCGANGenerator().eval(), _latent,
                           ["z ~ N(0, I)", "z = 0"], "DCGAN generator · 100-d noise → 64×64 image",
-                          controls=[{"id": "alpha", "label": "interpolate latent z: A → B", "min": 0, "max": 1, "step": 0.05, "default": 0},
-                                    {"id": "scale", "label": "latent scale", "min": 0, "max": 2, "step": 0.1, "default": 1}]),
+                          controls=[{"id": "alpha", "label": "Interpolate latent z: A → B", "min": 0, "max": 1, "step": 0.05, "default": 0},
+                                    {"id": "scale", "label": "Latent scale", "min": 0, "max": 2, "step": 0.1, "default": 1}]),
     "dcgan-discriminator": _e("Autoencoder / GAN", lambda pretrained=False: DCGANDiscriminator().eval(), *image_input(64),
                               "DCGAN discriminator · real/fake classifier"),
     "ddpm-unet": _e("Diffusion", lambda pretrained=False: DDPMUNet().eval(), _diffusion_input,
                     ["synthetic scene x₀", "blank image x₀ = 0"], "DDPM noise-prediction U-Net (scaled down) · inputs x_t and t",
-                    controls=[{"id": "t", "label": "timestep t (0 = clean, 999 = pure noise)", "min": 0, "max": 999, "step": 10, "default": 500}],
+                    controls=[{"id": "t", "label": "Timestep t (0 = clean, 999 = pure noise)", "min": 0, "max": 999, "step": 10, "default": 500}],
                     extras=_diffusion_extras),
     "gpt-oss-style": _e("LLM", lambda pretrained=False: GPTOSS().eval(), *token_input(4096),
                         "GPT-OSS-style · MoE (8 experts, top-2) + GQA + sliding-window attention (scaled down)"),
