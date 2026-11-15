@@ -92,7 +92,18 @@
   #gallery figure{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 5px 3px;text-align:center}
   #gallery canvas{width:96px;height:96px;image-rendering:pixelated;display:block;border-radius:4px;background:#000}
   #gallery figcaption{font-size:10.5px;color:var(--mut);margin-top:3px;max-width:96px;line-height:1.2}
-  #profile{pointer-events:auto;width:100%;max-width:640px;height:64px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+  #profcard{pointer-events:auto;position:relative;width:100%;max-width:720px;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px);padding:8px 10px 6px}
+  #profcard[hidden]{display:none}
+  #profcard .ph{display:flex;align-items:baseline;gap:8px;margin:0 2px 2px;min-width:0}
+  #profcard .pt{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg);font-weight:600;white-space:nowrap}
+  #profcard .ps{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #profcard .sp{flex:1}
+  #pstat{font-size:11px;color:var(--mut);white-space:nowrap} #pstat b{color:var(--fg);font-weight:600}
+  #pstat .bn{color:#ffd54f}
+  #profile{display:block;width:100%;height:118px;cursor:crosshair}
+  #ptip{position:absolute;pointer-events:none;z-index:2;background:#0d0d12f2;border:1px solid #2a2a35;border-radius:8px;padding:6px 9px;font-size:11.5px;line-height:1.45;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);transform:translate(-50%,-100%)}
+  #ptip[hidden]{display:none}
+  #ptip b{color:#fff} #ptip .k{color:var(--mut)} #ptip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
   #legend .mbar{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
   #legend .mbar i{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
   /* ---- control panel v2: header, tabs, groups ---- */
@@ -325,7 +336,8 @@
     </div>
   </section>
 </div>
-<div id="bottom"><div id="gallery"></div><canvas id="profile" width="640" height="64" title="Tensor size along the main path (log scale) — click to jump"></canvas></div>
+<div id="bottom"><div id="gallery"></div><div id="profcard" hidden><div class="ph"><span class="pt">Tensor size</span><span class="ps">along the main path · log scale · click a point to jump</span><span class="sp"></span><span id="pstat"></span></div>
+<canvas id="profile" aria-label="Tensor size along the main path"></canvas><div id="ptip" hidden></div></div></div>
 <div id="title"></div>
 <div id="card"></div>
 <div id="legend"></div>
@@ -1250,28 +1262,74 @@ function buildDepthRuler(){
   add3(guide, new T.LineBasicMaterial({color: 0x90a4ae, transparent: true, opacity: 0.18}));
 }
 
+// ---------- tensor-size profile (bottom chart) ----------
+let profHover = -1, profGeom = null;
+const fmtCount = n => n >= 1e9 ? +(n/1e9).toPrecision(3) + "B" : n >= 1e6 ? +(n/1e6).toPrecision(3) + "M" : n >= 1e3 ? +(n/1e3).toPrecision(3) + "K" : String(Math.round(n));
 function renderProfile(){
-  const cv_ = $("profile"), c = cv_.getContext("2d"), W_ = cv_.width, H_ = cv_.height;
-  c.clearRect(0, 0, W_, H_);
-  const vs = visSpine;
-  cv_.style.display = vs.length < 3 ? "none" : "block";
-  if (vs.length < 3) return;
-  const ls = vs.map(v => Math.log10(Math.max(1, v.numel))), lo = Math.min(...ls) - 0.1, hi = Math.max(...ls) + 0.1;
-  const X = i => 8 + (W_ - 16) * i/(vs.length - 1), Y = l => H_ - 14 - (H_ - 26) * (l - lo)/(hi - lo);
-  c.fillStyle = "rgba(92,220,255,0.12)"; c.strokeStyle = "#5cdcff"; c.lineWidth = 1.5;
-  c.beginPath(); c.moveTo(X(0), H_ - 14);
-  vs.forEach((v, i) => c.lineTo(X(i), Y(ls[i])));
-  c.lineTo(X(vs.length - 1), H_ - 14); c.closePath(); c.fill();
-  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.stroke();
-  const an = G.analysis, bn = an && an.bottleneck && G.rep[an.bottleneck];
-  const bi = vs.findIndex(v => v.name === bn);
-  if (bi >= 0){
-    c.strokeStyle = "#ffd54f"; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(bi), 4); c.lineTo(X(bi), H_ - 12); c.stroke(); c.setLineDash([]);
-    c.fillStyle = "#ffd54f"; c.beginPath(); c.arc(X(bi), Y(ls[bi]), 4, 0, 7); c.fill();
+  const card = $("profcard"), cv_ = $("profile"), vs = visSpine || [];
+  card.hidden = vs.length < 3; if (card.hidden){ profGeom = null; return; }
+  const dpr = Math.min(devicePixelRatio || 1, 2), W_ = cv_.clientWidth, H_ = cv_.clientHeight;
+  if (!W_) return;
+  if (cv_.width !== Math.round(W_*dpr) || cv_.height !== Math.round(H_*dpr)){ cv_.width = Math.round(W_*dpr); cv_.height = Math.round(H_*dpr); }
+  const c = cv_.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W_, H_);
+  const ls = vs.map(v => Math.log10(Math.max(1, v.numel)));
+  let lo = Math.floor(Math.min(...ls)), hi = Math.ceil(Math.max(...ls)); if (hi === lo) hi = lo + 1;
+  const L = 40, R = 10, Tp = 8, B = 20, pw = W_ - L - R, ph = H_ - Tp - B;
+  const X = i => L + pw * i/(vs.length - 1), Y = l => Tp + ph * (1 - (l - lo)/(hi - lo));
+  c.font = "10px system-ui,Segoe UI,sans-serif"; c.textBaseline = "middle";
+  // y axis: one gridline per decade
+  const step = hi - lo > 6 ? 2 : 1;
+  for (let p = lo; p <= hi; p += step){
+    const y = Math.round(Y(p)) + .5;
+    c.strokeStyle = p === lo ? "#3a3a48" : "#1e1e28"; c.lineWidth = 1; c.beginPath(); c.moveTo(L, y); c.lineTo(W_ - R, y); c.stroke();
+    c.fillStyle = "#8a8a96"; c.textAlign = "right"; c.fillText(fmtCount(10**p), L - 6, y);
   }
-  c.fillStyle = "#8a8a96"; c.font = "10px system-ui";
-  c.fillText("Tensor size along the main path (log)", 8, H_ - 2);
-  c.textAlign = "right"; c.fillText(`${Math.round(10**lo).toLocaleString()} → ${Math.round(10**hi).toLocaleString()} values`, W_ - 8, H_ - 2); c.textAlign = "left";
+  // x axis: layer positions
+  c.textAlign = "center"; c.textBaseline = "top";
+  const nt = Math.max(2, Math.min(8, Math.floor(pw/70))), every = Math.max(1, Math.ceil((vs.length - 1)/nt));
+  for (let i = 0; i < vs.length; i += every){
+    const x = Math.round(X(i)) + .5; c.strokeStyle = "#3a3a48"; c.beginPath(); c.moveTo(x, Tp + ph); c.lineTo(x, Tp + ph + 4); c.stroke();
+    c.fillStyle = "#8a8a96"; c.fillText(String(i + 1), x, Tp + ph + 6);
+  }
+  c.textAlign = "right"; c.fillStyle = "#5a5a68"; c.fillText("layer →", W_ - R, Tp + ph + 6);
+  // bottleneck marker
+  const an = G.analysis, bn = an && an.bottleneck && G.rep[an.bottleneck], bi = vs.findIndex(v => v.name === bn);
+  if (bi >= 0){ c.strokeStyle = "rgba(255,213,79,.55)"; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(bi), Tp); c.lineTo(X(bi), Tp + ph); c.stroke(); c.setLineDash([]); }
+  // area + line
+  const grad = c.createLinearGradient(0, Tp, 0, Tp + ph); grad.addColorStop(0, "rgba(92,220,255,.28)"); grad.addColorStop(1, "rgba(92,220,255,0)");
+  c.beginPath(); c.moveTo(X(0), Tp + ph); vs.forEach((v, i) => c.lineTo(X(i), Y(ls[i]))); c.lineTo(X(vs.length - 1), Tp + ph); c.closePath(); c.fillStyle = grad; c.fill();
+  c.beginPath(); vs.forEach((v, i) => i ? c.lineTo(X(i), Y(ls[i])) : c.moveTo(X(i), Y(ls[i]))); c.strokeStyle = "#5cdcff"; c.lineWidth = 1.6; c.lineJoin = "round"; c.stroke();
+  // points, coloured by layer type (smaller when crowded)
+  const r = vs.length > pw/4 ? 1.6 : vs.length > pw/9 ? 2.4 : 3.2, selI = sel ? vs.findIndex(v => v.name === sel.name) : -1;
+  vs.forEach((v, i) => { c.beginPath(); c.arc(X(i), Y(ls[i]), r, 0, 7); c.fillStyle = (KIND[v.kind] || KIND.op).color; c.fill(); });
+  const ring = (i, col, rr) => { c.beginPath(); c.arc(X(i), Y(ls[i]), rr, 0, 7); c.strokeStyle = col; c.lineWidth = 2; c.stroke(); };
+  if (bi >= 0){ c.beginPath(); c.arc(X(bi), Y(ls[bi]), 4.5, 0, 7); c.fillStyle = "#ffd54f"; c.fill(); }
+  if (profHover >= 0 && profHover < vs.length){
+    const x = X(profHover); c.strokeStyle = "rgba(228,228,234,.35)"; c.lineWidth = 1; c.beginPath(); c.moveTo(x, Tp); c.lineTo(x, Tp + ph); c.stroke();
+    ring(profHover, "#fff", 6);
+  }
+  if (selI >= 0) ring(selI, "#5cdcff", 7);
+  profGeom = {X, Y, ls, L, pw, n: vs.length};
+  // header stats
+  const mn = Math.min(...vs.map(v => v.numel)), mx = Math.max(...vs.map(v => v.numel)), pk = vs.find(v => v.numel === mx);
+  $("pstat").innerHTML = `<b>${fmtCount(mn)}</b> → <b>${fmtCount(mx)}</b> values · peak <b>${pk.name}</b>` +
+    (bi >= 0 ? ` · <span class="bn">◆ bottleneck</span>` : "");
+}
+function profIndexAt(e){
+  if (!profGeom) return -1;
+  const r = $("profile").getBoundingClientRect(), x = e.clientX - r.left;
+  return clamp(Math.round((x - profGeom.L) / profGeom.pw * (profGeom.n - 1)), 0, profGeom.n - 1);
+}
+function profTip(i){
+  const tip = $("ptip");
+  if (i < 0 || !profGeom){ tip.hidden = true; return; }
+  const v = visSpine[i], k = KIND[v.kind] || KIND.op, cv_ = $("profile");
+  tip.innerHTML = `<b>${v.name}</b> <span class="k">#${i + 1}</span><br><i style="background:${k.color}"></i>${k.label} · ${v.label}<br>` +
+    `<span class="k">shape</span> [${(v.shape || []).join(" × ")}]<br><span class="k">size</span> ${v.numel.toLocaleString()} values`;
+  tip.hidden = false;
+  const x = profGeom.X(i), y = profGeom.Y(profGeom.ls[i]);
+  tip.style.left = clamp(cv_.offsetLeft + x, 90, $("profcard").clientWidth - 90) + "px";
+  tip.style.top = (cv_.offsetTop + y - 10) + "px";
 }
 
 function rebuild(){
@@ -1357,12 +1415,13 @@ renderer.domElement.addEventListener("dblclick", e => {
   if (!n) return;
   if (n.kind === "group") transition(() => expanded.add(n.name)); else flyTo(n, true);
 });
+document.getElementById("profile").addEventListener("mousemove", e => { const i = profIndexAt(e); if (i !== profHover){ profHover = i; renderProfile(); } profTip(i); });
+document.getElementById("profile").addEventListener("mouseleave", () => { profHover = -1; renderProfile(); profTip(-1); });
 document.getElementById("profile").addEventListener("click", e => {
-  const r = document.getElementById("profile").getBoundingClientRect();
-  const i = Math.round((e.clientX - r.left - 8*r.width/640) / ((r.width - 16*r.width/640)) * (visSpine.length - 1));
-  const v = visSpine[clamp(i, 0, visSpine.length - 1)];
+  const v = visSpine[profIndexAt(e)];
   if (v){ sel = v; flyTo(v, true); refreshSweeps(); showPanel(); }
 });
+addEventListener("resize", () => renderProfile());
 addEventListener("keydown", e => { if (e.key === "f" || e.key === "F") fit(); });
 
 // ---------- panel ----------
@@ -1372,7 +1431,7 @@ function heat(canvas, M, cell){
   for (let i = 0; i < R; i++) for (let j = 0; j < C; j++){ c.fillStyle = cssDiv(M[i][j]/mx); c.fillRect(j*cell, i*cell, cell, cell); }
 }
 function showPanel(){
-  refreshHighlight();
+  refreshHighlight(); renderProfile();
   const p = document.getElementById("panel");
   if (!sel){ p.style.display = "none"; return; }
   const n = sel, k = KIND[n.kind];
@@ -1670,7 +1729,7 @@ const HELP = [
   ["Inspect a layer", `<b>Click any layer</b> to open the inspector on the right: plain-language description, input/output shapes,
     parameters, FLOPs, kernels or weight matrices, attention maps, router gates.
     <ul><li>Its <b>skip connections</b> light up green and the layer at the other end is outlined.</li>
-    <li>The <b>profile strip</b> at the bottom plots tensor size along the main path; click it to jump to that layer.</li></ul>`],
+    <li>The <b>Tensor size</b> chart at the bottom plots the size of every layer's output along the main path (log scale). Hover a point for details; click it to jump there.</li></ul>`],
   ["Arrange and colour", `In the <b>View</b> tab:
     <ul><li><b>Layout</b>: <i>Line</i>, <i>Folded grid</i> (compact for deep nets) or <i>Spiral</i>.</li>
     <li><b>Colour layers by</b>: type, parameters, FLOPs, activation size, sparsity, mean |activation| or residual change.
